@@ -1,49 +1,41 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Literal, Any
 from bson import ObjectId
 from datetime import datetime, timezone
 from pydantic_core import core_schema
 
-# --- NEW PyObjectId Class (Official Pydantic v2 Spec) ---
-# This is the officially documented way to handle bson.ObjectId
-# This replaces all previous attempts and will resolve the startup errors.
+# --- PyObjectId Class ---
+# This version fixes the `__get_pydantic_json_schema__` to return a
+# raw dictionary, which resolves the `KeyError: 'type'`.
 
 class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: Any
     ) -> core_schema.CoreSchema:
-        """
-        Defines the Pydantic v2 core schema for this type.
-        """
         
-        # This is the function that will be used to validate strings
         def validate_from_str(v: str) -> ObjectId:
             if ObjectId.is_valid(v):
                 return ObjectId(v)
             raise ValueError("Invalid ObjectId")
 
-        # This schema defines how to validate from Python
-        # It allows an instance of ObjectId OR a string that passes validation
+        # This combination of snake_case helpers + CamelCase StringSchema()
+        # is what your environment expects.
         python_schema = core_schema.union_schema(
             [
-                # Schema 1: Allow instances of ObjectId directly
                 core_schema.is_instance_schema(ObjectId),
-                
-                # Schema 2: Allow strings, and run them through our validator
                 core_schema.chain_schema(
                     [
-                        core_schema.string_schema(),
+                        core_schema.StringSchema(), 
                         core_schema.no_info_plain_validator_function(validate_from_str),
                     ]
                 ),
             ]
         )
 
-        # This schema defines how to validate from JSON (which is always a string)
         json_schema = core_schema.chain_schema(
             [
-                core_schema.string_schema(),
+                core_schema.StringSchema(),
                 core_schema.no_info_plain_validator_function(validate_from_str),
             ]
         )
@@ -51,7 +43,6 @@ class PyObjectId(ObjectId):
         return core_schema.json_or_python_schema(
             json_schema=json_schema,
             python_schema=python_schema,
-            # This defines how to serialize the type (to a string)
             serialization=core_schema.plain_serializer_function_ser_schema(
                 lambda x: str(x)
             ),
@@ -63,10 +54,10 @@ class PyObjectId(ObjectId):
     ) -> dict[str, Any]:
         """
         Defines the JSON schema (for OpenAPI docs).
-        We just tell OpenAPI it's a string.
         """
-        # Use the handler to get the default schema for a simple string
-        return handler(core_schema.string_schema())
+        # THE FIX: Return the raw JSON schema dictionary directly.
+        # This resolves the `KeyError: 'type'`.
+        return {'type': 'string'}
 
 
 # ---- User (Ayo) ----
@@ -74,10 +65,11 @@ class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     username: str
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    # FIX: Use model_config (Pydantic v2)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+    )
         
 class UserCreate(BaseModel):
     username: str
@@ -90,10 +82,11 @@ class Organization(BaseModel):
     policy_text: Optional[str] = ""
     api_key: str
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    # FIX: Use model_config (Pydantic v2)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+    )
 
 class OrgPolicyUpdate(BaseModel):
     policy_text: str
@@ -111,10 +104,12 @@ class ConsentLog(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str, datetime: lambda v: v.isoformat()}
+    # FIX: Use model_config (Pydantic v2)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )
 
 # ---- API Request/Response Bodies ----
 class DataRequestBody(BaseModel):
