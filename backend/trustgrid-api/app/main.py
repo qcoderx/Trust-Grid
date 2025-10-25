@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+import pymongo
 from .database import (
     users_collection, 
     organizations_collection, 
@@ -88,7 +89,8 @@ async def respond_to_request(body: ConsentResponseBody):
     Feature 1.2: Ayo clicks "Approve" or "Deny" on his modal.
     """
     try:
-        request_oid = ObjectId(body.request_id)
+        # We can now validate using the PyObjectId logic
+        request_oid = validate_object_id(body.request_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid request_id format.")
 
@@ -205,5 +207,8 @@ async def get_org_details(org: Organization = Depends(get_current_org)):
 
 # --- Main execution ---
 if __name__ == "__main__":
+    # We need to import the validator function for the endpoint to use
+    from .models import validate_object_id
     print("Starting Trust-Grid API server at http://localhost:8000")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

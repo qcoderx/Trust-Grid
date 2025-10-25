@@ -1,74 +1,50 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Literal, Any
+from __future__ import annotations # Good practice for modern type hints
+from pydantic import (
+    BaseModel, Field, ConfigDict, BeforeValidator
+)
+# Import the new tools for serialization and schema
+from pydantic.functional_serializers import PlainSerializer
+from pydantic.json_schema import WithJsonSchema
+from typing import Optional, Literal, Any, Annotated
 from bson import ObjectId
 from datetime import datetime, timezone
-from pydantic_core import core_schema
 
-# --- PyObjectId Class ---
-# This version fixes the `__get_pydantic_json_schema__` to return a
-# raw dictionary, which resolves the `KeyError: 'type'`.
+# --- Pydantic v2 ObjectId Handling ---
+# This is the modern, official way. It's simpler and avoids the custom class.
+# We define a validator function that Pydantic will use.
 
-class PyObjectId(ObjectId):
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Any
-    ) -> core_schema.CoreSchema:
-        
-        def validate_from_str(v: str) -> ObjectId:
-            if ObjectId.is_valid(v):
-                return ObjectId(v)
-            raise ValueError("Invalid ObjectId")
+def validate_object_id(v: Any) -> ObjectId:
+    """Validate a BSON ObjectId."""
+    if isinstance(v, ObjectId):
+        return v
+    if ObjectId.is_valid(v):
+        return ObjectId(v)
+    raise ValueError("Invalid ObjectId")
 
-        # This combination of snake_case helpers + CamelCase StringSchema()
-        # is what your environment expects.
-        python_schema = core_schema.union_schema(
-            [
-                core_schema.is_instance_schema(ObjectId),
-                core_schema.chain_schema(
-                    [
-                        core_schema.StringSchema(), 
-                        core_schema.no_info_plain_validator_function(validate_from_str),
-                    ]
-                ),
-            ]
-        )
+# We enhance PyObjectId to handle validation, serialization, and JSON schema
+# This makes it a complete, self-contained type.
+PyObjectId = Annotated[
+    ObjectId,
+    # 1. Validation (Input): Use the validator function
+    BeforeValidator(validate_object_id),
+    
+    # 2. Serialization (Output): Tell Pydantic to just call str() on it
+    PlainSerializer(lambda x: str(x)),
+    
+    # 3. JSON Schema (OpenAPI): Describe it as a string with "objectid" format
+    WithJsonSchema({'type': 'string', 'format': 'objectid'}),
+]
 
-        json_schema = core_schema.chain_schema(
-            [
-                core_schema.StringSchema(),
-                core_schema.no_info_plain_validator_function(validate_from_str),
-            ]
-        )
-
-        return core_schema.json_or_python_schema(
-            json_schema=json_schema,
-            python_schema=python_schema,
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda x: str(x)
-            ),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: core_schema.CoreSchema, handler: Any
-    ) -> dict[str, Any]:
-        """
-        Defines the JSON schema (for OpenAPI docs).
-        """
-        # THE FIX: Return the raw JSON schema dictionary directly.
-        # This resolves the `KeyError: 'type'`.
-        return {'type': 'string'}
-
-
-# ---- User (Ayo) ----
+# --- User (Ayo) ----
 class User(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    # We can now use PyObjectId just like a normal type
+    id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     username: str
-
-    # FIX: Use model_config (Pydantic v2)
+    
+    # We can remove arbitrary_types_allowed and json_encoders
+    # because PyObjectId now handles all of it.
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
     )
         
 class UserCreate(BaseModel):
@@ -77,15 +53,14 @@ class UserCreate(BaseModel):
 
 # ---- Organization (SME-Femi) ----
 class Organization(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     org_name: str
     policy_text: Optional[str] = ""
     api_key: str
 
-    # FIX: Use model_config (Pydantic v2)
+    # Removed redundant config
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
     )
 
 class OrgPolicyUpdate(BaseModel):
@@ -93,9 +68,9 @@ class OrgPolicyUpdate(BaseModel):
 
 # ---- Consent Log (The Ledger) ----
 class ConsentLog(BaseModel):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=lambda: ObjectId(), alias="_id")
     user_id: str
-    org_id: PyObjectId
+    org_id: PyObjectId  # This will also use the validation
     data_type: str
     purpose: str
     status: Literal["pending", "approved", "denied"]
@@ -104,14 +79,15 @@ class ConsentLog(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc)
     )
 
-    # FIX: Use model_config (Pydantic v2)
+    # Pydantic v2 automatically serializes datetime to ISO format,
+    # and our PyObjectId type handles ObjectId serialization.
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
-        json_encoders={datetime: lambda v: v.isoformat()}
     )
 
 # ---- API Request/Response Bodies ----
+# (These were already correct as they don't use ObjectId)
+
 class DataRequestBody(BaseModel):
     user_id: str
     data_type: str
@@ -120,3 +96,4 @@ class DataRequestBody(BaseModel):
 class ConsentResponseBody(BaseModel):
     request_id: str
     decision: Literal["approved", "denied"]
+
