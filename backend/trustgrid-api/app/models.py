@@ -3,20 +3,38 @@ from typing import Optional, List
 from bson import ObjectId
 from datetime import datetime
 
-class PyObjectId(ObjectId):
+class PyObjectId(str):
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
+    def __get_pydantic_validator__(cls, _core_config, _handler):
+        def validate(v):
+            if isinstance(v, ObjectId):
+                return cls(str(v))
+            if isinstance(v, str):
+                return cls(v)
             raise ValueError("Invalid objectid")
-        return ObjectId(v)
+        return validate
 
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema, handler):
         return {"type": "string"}
+
+    def __new__(cls, value):
+        if isinstance(value, ObjectId):
+            return str.__new__(cls, str(value))
+        return str.__new__(cls, value)
+
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        from pydantic_core import core_schema
+        return core_schema.no_info_plain_validator_function(cls.__validate__)
+
+    @classmethod
+    def __validate__(cls, v):
+        if isinstance(v, ObjectId):
+            return cls(str(v))
+        if isinstance(v, str):
+            return cls(v)
+        raise ValueError("Invalid objectid")
 
 def validate_object_id(v):
     if not ObjectId.is_valid(v):
