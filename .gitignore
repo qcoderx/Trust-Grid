@@ -1,6 +1,7 @@
 # --- Secrets ---
 # MUST ignore environment variables file
 .env
+.venv
 
 # --- Python ---
 # Byte-compiled / optimized / DLL files

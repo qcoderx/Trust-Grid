@@ -124,12 +124,12 @@ const Header = () => {
         </button>
         
         {/* Profile Button */}
-        <a 
+        <Link
           className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-black/20 dark:border-white/20 text-black dark:text-white hover:border-primary hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background-dark transition-colors" 
-          href="#profile"
+          to="/profile"
         >
           <span className="material-symbols-outlined text-2xl">person</span>
-        </a>
+        </Link>
       </div>
     </header>
   );
