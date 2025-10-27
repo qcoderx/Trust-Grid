@@ -11,6 +11,7 @@ from app.database import (
     users_collection,
     organizations_collection,
     consent_log_collection,
+    api_keys_collection,
     db as check_db_connection,
 )
 from app.models import (
@@ -21,6 +22,8 @@ from app.models import (
     DataRequestBody,
     ConsentLog,
     ConsentResponseBody,
+    ApiKey,
+    ApiKeyCreate,
     PyObjectId,
     validate_object_id,
 )
@@ -286,6 +289,7 @@ async def get_org_compliance_log(org: Organization = Depends(get_current_org)):
 @app.get("/api/v1/org/me", response_model=Organization, tags=["Organization (SME-Femi)"])
 async def get_org_details(org: Organization = Depends(get_current_org)):
     return org
+
 
 # --- Main execution ---
 if __name__ == "__main__":

@@ -37,9 +37,13 @@ try:
     users_collection = db["users"]
     organizations_collection = db["organizations"]
     consent_log_collection = db["consent_log"]
+    api_keys_collection = db["api_keys"]
 
 except Exception as e:
-    print(f"🔥 MongoDB connection failed. Check MONGO_URI or network. Error: {e}")
-    # --- THIS IS THE FIX ---
-    # Fail fast so the app doesn't run in a broken state.
-    exit(1)
+    print(f"🔥 MongoDB connection failed. Check MONGO_URI. Error: {e}")
+    client = None # Ensure client is None if connection fails
+    db = None
+    users_collection = None
+    organizations_collection = None
+    consent_log_collection = None
+    api_keys_collection = None
