@@ -6,8 +6,14 @@ const Header = () => {
   const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark');
+    const savedTheme = localStorage.getItem('theme');
+    const isDark = savedTheme === 'dark' || (!savedTheme && true); // default to dark if not set
     setDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   const toggleTheme = () => {
