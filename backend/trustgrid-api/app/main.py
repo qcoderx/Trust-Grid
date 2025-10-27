@@ -8,6 +8,7 @@ from app.database import (
     users_collection,
     organizations_collection,
     consent_log_collection,
+    api_keys_collection,
     db as check_db_connection,
 )
 from app.models import (
@@ -18,6 +19,8 @@ from app.models import (
     DataRequestBody,
     ConsentLog,
     ConsentResponseBody,
+    ApiKey,
+    ApiKeyCreate,
     PyObjectId,
     validate_object_id,
 )
@@ -188,6 +191,52 @@ async def get_org_compliance_log(org: Organization = Depends(get_current_org)):
 @app.get("/api/v1/org/me", response_model=Organization, tags=["Organization (SME-Femi)"])
 async def get_org_details(org: Organization = Depends(get_current_org)):
     return org
+
+
+@app.get("/api/v1/org/api-keys", response_model=list[ApiKey], tags=["Organization (SME-Femi)"])
+async def get_api_keys(org: Organization = Depends(get_current_org)):
+    keys = api_keys_collection.find({"org_id": org.id}).sort("created_date", -1)
+    return list(keys)
+
+
+@app.post("/api/v1/org/api-keys", response_model=ApiKey, status_code=status.HTTP_201_CREATED, tags=["Organization (SME-Femi)"])
+async def create_api_key(key_data: ApiKeyCreate, org: Organization = Depends(get_current_org)):
+    import secrets
+    import string
+
+    # Generate a secure API key
+    alphabet = string.ascii_letters + string.digits
+    api_key_value = "tg_sk_live_" + ''.join(secrets.choice(alphabet) for _ in range(32))
+
+    api_key_doc = {
+        "name": key_data.name,
+        "key": api_key_value,
+        "status": "active",
+        "created_date": datetime.utcnow(),
+        "org_id": org.id,
+    }
+
+    result = api_keys_collection.insert_one(api_key_doc)
+    created_key = api_keys_collection.find_one({"_id": result.inserted_id})
+    return ApiKey(**created_key)
+
+
+@app.post("/api/v1/org/api-keys/{key_id}/revoke", status_code=status.HTTP_200_OK, tags=["Organization (SME-Femi)"])
+async def revoke_api_key(key_id: str, org: Organization = Depends(get_current_org)):
+    try:
+        key_oid = validate_object_id(key_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid key_id format.")
+
+    result = api_keys_collection.update_one(
+        {"_id": key_oid, "org_id": org.id},
+        {"$set": {"status": "revoked"}},
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="API key not found.")
+
+    return {"message": "API key revoked successfully."}
 
 
 # --- Main execution ---

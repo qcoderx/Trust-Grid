@@ -89,3 +89,19 @@ class ConsentLog(BaseModel):
 class ConsentResponseBody(BaseModel):
     request_id: str
     decision: str  # "approved" or "denied"
+
+class ApiKey(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    name: str
+    key: str
+    status: str  # "active" or "revoked"
+    created_date: datetime
+    org_id: PyObjectId
+
+    class Config:
+        validate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class ApiKeyCreate(BaseModel):
+    name: str

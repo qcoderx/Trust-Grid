@@ -32,6 +32,7 @@ try:
     users_collection = db["users"]
     organizations_collection = db["organizations"]
     consent_log_collection = db["consent_log"]
+    api_keys_collection = db["api_keys"]
     
     # Verify connection
     client.admin.command('ping')
@@ -44,3 +45,4 @@ except Exception as e:
     users_collection = None
     organizations_collection = None
     consent_log_collection = None
+    api_keys_collection = None
