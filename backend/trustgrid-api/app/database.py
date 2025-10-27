@@ -26,21 +26,20 @@ except Exception as e:
 # Setup MongoDB connection
 try:
     client = pymongo.MongoClient(settings.MONGO_URI, serverSelectionTimeoutMS=5000)
+    
+    # Verify connection FIRST
+    client.admin.command('ping')
+    print("✅ MongoDB connection successful.")
+    
     db = client[settings.DB_NAME]
     
     # Get collections. This is what our app will import and use.
     users_collection = db["users"]
     organizations_collection = db["organizations"]
     consent_log_collection = db["consent_log"]
-    
-    # Verify connection
-    client.admin.command('ping')
-    print("✅ MongoDB connection successful.")
 
 except Exception as e:
-    print(f"🔥 MongoDB connection failed. Check MONGO_URI. Error: {e}")
-    client = None # Ensure client is None if connection fails
-    db = None
-    users_collection = None
-    organizations_collection = None
-    consent_log_collection = None
+    print(f"🔥 MongoDB connection failed. Check MONGO_URI or network. Error: {e}")
+    # --- THIS IS THE FIX ---
+    # Fail fast so the app doesn't run in a broken state.
+    exit(1)

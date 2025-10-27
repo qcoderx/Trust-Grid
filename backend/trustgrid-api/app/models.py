@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Literal
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
+# --- Your Teammate's Working Code (UNCHANGED) ---
 class PyObjectId(str):
     @classmethod
     def __get_pydantic_validator__(cls, _core_config, _handler):
@@ -40,6 +41,8 @@ def validate_object_id(v):
     if not ObjectId.is_valid(v):
         raise ValueError("Invalid ObjectId")
     return ObjectId(v)
+# --- End of Teammate's Code ---
+
 
 class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -52,12 +55,26 @@ class User(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
+    password: str # This was in your main.py but missing here
 
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     org_name: str
     policy_text: Optional[str] = None
     api_key: str
+    
+    # --- NEW VERIFICATION FIELDS ---
+    company_description: Optional[str] = None
+    company_category: Optional[Literal[
+        "Fintech", "E-commerce", "Social Media", "Dating", "Healthcare", "Gaming", "Other"
+    ]] = "Other"
+    website_url: Optional[str] = None
+    business_registration_number: Optional[str] = None # e.g., "RC 123456"
+    cac_certificate_url: Optional[str] = None # We will store the path to the uploaded file
+    
+    # --- NEW STATUS FIELD ---
+    verification_status: Literal["unverified", "pending", "verified", "rejected"] = "unverified"
+
 
     class Config:
         validate_by_name = True
@@ -78,8 +95,9 @@ class ConsentLog(BaseModel):
     org_id: PyObjectId
     data_type: str
     purpose: str
-    status: str
-    timestamp: datetime
+    # --- UPGRADED ---
+    status: Literal["pending", "approved", "denied"] 
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc)) # Modernized
 
     class Config:
         validate_by_name = True
@@ -88,4 +106,5 @@ class ConsentLog(BaseModel):
 
 class ConsentResponseBody(BaseModel):
     request_id: str
-    decision: str  # "approved" or "denied"
+    # --- UPGRADED ---
+    decision: Literal["approved", "denied"]

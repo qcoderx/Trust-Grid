@@ -8,3 +8,5 @@ passlib[bcrypt]>=1.7.4
 google-generativeai==0.4.1
 grpcio==1.62.3
 grpcio-status==1.62.3
+dnspython
+python-multipart
