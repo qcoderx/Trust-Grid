@@ -1,0 +1,12 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pymongo>=4.6.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+passlib[bcrypt]>=1.7.4
+google-generativeai==0.4.1
+grpcio==1.62.3
+grpcio-status==1.62.3
+dnspython
+python-multipart
