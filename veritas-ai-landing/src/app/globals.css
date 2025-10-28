@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-deep-indigo text-clarity;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-emerald text-deep-indigo px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;
+  }
+  .section-padding {
+    @apply py-20 px-4 max-w-7xl mx-auto;
+  }
+}
