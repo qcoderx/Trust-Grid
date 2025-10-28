@@ -1,3 +1,4 @@
+# app/models.py
 from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
 from bson import ObjectId
@@ -43,6 +44,9 @@ def validate_object_id(v):
     return ObjectId(v)
 # --- End of Teammate's Code ---
 
+# --- NEW: Model for Org Registration (Input) ---
+class OrgCreate(BaseModel):
+    org_name: str
 
 class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -61,25 +65,27 @@ class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     org_name: str
     policy_text: Optional[str] = None
-    api_key: str
+    # --- api_key REMOVED ---
     
-    # --- NEW VERIFICATION FIELDS ---
+    # Verification fields
     company_description: Optional[str] = None
     company_category: Optional[Literal[
         "Fintech", "E-commerce", "Social Media", "Dating", "Healthcare", "Gaming", "Other"
     ]] = "Other"
     website_url: Optional[str] = None
-    business_registration_number: Optional[str] = None # e.g., "RC 123456"
-    cac_certificate_url: Optional[str] = None # We will store the path to the uploaded file
-    
-    # --- NEW STATUS FIELD ---
+    business_registration_number: Optional[str] = None
+    cac_certificate_url: Optional[str] = None # Path to the saved file
     verification_status: Literal["unverified", "pending", "verified", "rejected"] = "unverified"
-
 
     class Config:
         validate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+# --- NEW: Model for Org Registration (Response) ---
+class OrgRegistrationResponse(BaseModel):
+    organization: Organization
+    api_key: str # The new, unhashed key (shown once)
 
 class OrgPolicyUpdate(BaseModel):
     policy_text: str
@@ -95,7 +101,6 @@ class ConsentLog(BaseModel):
     org_id: PyObjectId
     data_type: str
     purpose: str
-    # --- UPGRADED ---
     status: Literal["pending", "approved", "denied"] 
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc)) # Modernized
 
@@ -106,13 +111,14 @@ class ConsentLog(BaseModel):
 
 class ConsentResponseBody(BaseModel):
     request_id: str
-    # --- UPGRADED ---
     decision: Literal["approved", "denied"]
+
+# --- UPDATED ApiKey Model ---
 class ApiKey(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     name: str
-    key: str
-    status: str  # "active" or "revoked"
+    key_hash: str # <-- Store the hash, not the key
+    status: Literal["active", "revoked"] # Use Literal for status
     created_date: datetime
     org_id: PyObjectId
 
@@ -123,3 +129,8 @@ class ApiKey(BaseModel):
 
 class ApiKeyCreate(BaseModel):
     name: str
+
+# --- NEW: Model for API Key Response (shows key once) ---
+class ApiKeyResponse(BaseModel):
+    key_details: ApiKey # Contains the ID, hash, etc.
+    api_key: str       # The plain text key (shown once)
