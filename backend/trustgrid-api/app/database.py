@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     MONGO_URI: str
     DB_NAME: str
     GEMINI_API_KEY: str
-    # --- FEMI_STATIC_API_KEY REMOVED ---
 
     class Config:
         env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
