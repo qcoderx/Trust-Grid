@@ -145,6 +145,25 @@ async def create_user(user: UserCreate):
     if not created_user: raise HTTPException(status_code=500, detail="Failed to retrieve created user.")
     return User(**created_user)
 
+@app.post("/api/v1/citizen/login", tags=["Citizen (Ayo)"])
+async def login_user(user: UserCreate):
+    """
+    Login endpoint for citizens.
+    Returns user details if credentials are valid.
+    """
+    existing_user = users_collection.find_one({"username": user.username})
+    if not existing_user:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    # Verify password using SHA256
+    import hashlib
+    expected_hash = hashlib.sha256(user.password.encode()).hexdigest()
+    if expected_hash != existing_user["password"]:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    # Return user details (excluding password)
+    return User(**existing_user)
+
 @app.get("/api/v1/citizen/{user_id}/requests", response_model=List[ConsentLog], tags=["Citizen (Ayo)"])
 async def get_pending_requests(user_id: str):
     requests = consent_log_collection.find({"user_id": user_id, "status": "pending"}).sort("timestamp", -1)
@@ -284,6 +303,39 @@ async def update_org_policy(policy_body: OrgPolicyUpdate, org: Organization = De
 async def get_org_compliance_log(org: Organization = Depends(get_current_org)):
     logs = consent_log_collection.find({"org_id": validate_object_id(org.id)}).sort("timestamp", -1)
     return list(logs)
+
+@app.post("/api/v1/org/login", response_model=Organization, tags=["Organization (SME-Femi)"])
+async def login_org(api_key: str = Form(...)):
+    """
+    Login endpoint for organizations using their API key.
+    Returns organization details if the API key is valid.
+    """
+    # Manually verify the API key (similar to get_current_org dependency)
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API Key is missing")
+
+    # Check against active keys
+    all_api_keys = api_keys_collection.find({"status": "active"})
+    matched_key_doc = None
+    for key_doc in all_api_keys:
+        hashed_key = key_doc.get("key_hash")
+        if hashed_key and verify_api_key(api_key, hashed_key):
+            matched_key_doc = key_doc
+            break
+
+    if not matched_key_doc:
+        raise HTTPException(status_code=401, detail="Invalid or expired API Key")
+
+    # Get the associated organization
+    org_id = matched_key_doc.get("org_id")
+    if not org_id:
+        raise HTTPException(status_code=500, detail="Internal server error: API key not linked to organization")
+
+    org_data = organizations_collection.find_one({"_id": org_id})
+    if not org_data:
+        raise HTTPException(status_code=500, detail="Internal server error: Organization not found")
+
+    return Organization(**org_data)
 
 @app.get("/api/v1/org/me", response_model=Organization, tags=["Organization (SME-Femi)"])
 async def get_org_details(org: Organization = Depends(get_current_org)):
