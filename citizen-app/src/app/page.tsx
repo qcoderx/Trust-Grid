@@ -9,6 +9,7 @@ import ConsentModal from '@/components/ConsentModal'
 export default function Home() {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null)
   const [pendingRequests, setPendingRequests] = useState<any[]>([])
+  const [processedRequests, setProcessedRequests] = useState<Set<string>>(new Set())
 
   // Mock login for demo
   const handleLogin = (username: string, password: string) => {
@@ -39,7 +40,7 @@ export default function Home() {
           user_id: user.id,
           data_type: 'bvn',
           purpose: 'KYC verification',
-          status: 'pending',
+          status: processedRequests.has('2') ? 'approved' : 'pending',
           timestamp_requested: new Date().toISOString(),
         },
       ]
@@ -50,14 +51,15 @@ export default function Home() {
 
   useEffect(() => {
     if (requests) {
-      const pending = requests.filter((req: any) => req.status === 'pending')
+      const pending = requests.filter((req: any) => req.status === 'pending' && !processedRequests.has(req._id))
       setPendingRequests(pending)
     }
-  }, [requests])
+  }, [requests, processedRequests])
 
   const handleConsentResponse = async (requestId: string, response: 'approved' | 'denied') => {
     // Mock API call to respond to consent
     console.log(`Responding to request ${requestId} with ${response}`)
+    setProcessedRequests(prev => new Set([...prev, requestId]))
     setPendingRequests([])
   }
 
