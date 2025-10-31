@@ -16,7 +16,7 @@ class ApiKey(BaseModel):
     # Add other fields as needed
 
 class TrustGridClient:
-    def __init__(self, api_key: str, base_url: str = "http://localhost:8000"):
+    def __init__(self, api_key: str, base_url: str = "https://trust-grid.onrender.com"):
         self.api_key = api_key
         self.base_url = base_url
         self.session = requests.Session()

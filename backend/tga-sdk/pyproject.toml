@@ -7,7 +7,7 @@ name = "tga"
 version = "0.1.0"
 description = "SDK for Trust-Grid API"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Raufu Abdulrahman", email = "coder0214h@gmail.com"},
 ]
 dependencies = [
     "requests>=2.25.0",
