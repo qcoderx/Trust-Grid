@@ -6,9 +6,15 @@ const config: Config = {
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
+        // TrustGrid Landing Page Colors
+        primary: "#10b981",
+        "background-light": "#ffffff",
+        "background-dark": "#000000",
+        // Existing Trust-Grid Colors
         "trust-accent": "#1C64F2",
         "trust-accent-light": "#3B82F6",
         "trust-accent-dark": "#1D4ED8",
@@ -25,6 +31,7 @@ const config: Config = {
       },
       fontFamily: {
         inter: ["Inter", "sans-serif"],
+        display: ["Space Grotesk", "sans-serif"],
       },
       animation: {
         "fade-in": "fadeIn 0.5s ease-in-out",

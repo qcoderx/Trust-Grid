@@ -1,32 +1,21 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        "trust-accent": "#1C64F2",
-        "trust-accent-light": "#3B82F6",
-        "trust-accent-dark": "#1D4ED8",
-        "neutral-50": "#FAFAFA",
-        "neutral-100": "#F5F5F5",
-        "neutral-200": "#E5E5E5",
-        "neutral-300": "#D4D4D4",
-        "neutral-400": "#A3A3A3",
-        "neutral-500": "#737373",
-        "neutral-600": "#525252",
-        "neutral-700": "#404040",
-        "neutral-800": "#262626",
-        "neutral-900": "#171717",
+        primary: "#10b981",
+        "background-light": "#ffffff",
+        "background-dark": "#000000",
       },
       fontFamily: {
-        inter: ["Inter", "sans-serif"],
+        display: ["Space Grotesk", "sans-serif"],
       },
     },
   },
   plugins: [],
 }
-

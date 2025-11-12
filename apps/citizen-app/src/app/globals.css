@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-neutral-50 text-neutral-900;
+  }
+}
+
+@layer components {
+  /* SocialVibe Buttons */
+  .btn-vibe {
+    @apply bg-gradient-to-r from-vibe-500 to-accent-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-vibe-600 hover:to-accent-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+  
+  .btn-vibe-outline {
+    @apply border-2 border-vibe-500 text-vibe-600 px-6 py-3 rounded-xl font-semibold hover:bg-vibe-50 transition-all duration-200;
+  }
+  
+  .btn-trust {
+    @apply bg-trust-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-trust-700 transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-approve {
+    @apply bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-deny {
+    @apply bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-ghost {
+    @apply text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  /* Cards & Containers */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-neutral-200 p-6 hover:shadow-md transition-all duration-200;
+  }
+  
+  .card-elevated {
+    @apply bg-white rounded-2xl shadow-lg border border-neutral-200 p-6 hover:shadow-xl transition-all duration-300;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg;
+  }
+
+  /* Form Elements */
+  .input-field {
+    @apply w-full px-4 py-3 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-vibe-500 focus:border-transparent transition-all duration-200 bg-white;
+  }
+  
+  .input-search {
+    @apply w-full px-4 py-3 pl-10 border border-neutral-300 rounded-full focus:ring-2 focus:ring-vibe-500 focus:border-transparent transition-all duration-200 bg-white;
+  }
+
+  /* Navigation */
+  .nav-item {
+    @apply flex flex-col items-center justify-center p-3 rounded-xl transition-all duration-200;
+  }
+  
+  .nav-item-active {
+    @apply bg-vibe-100 text-vibe-700;
+  }
+  
+  .nav-item-inactive {
+    @apply text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100;
+  }
+
+  /* Social Elements */
+  .post-card {
+    @apply bg-white rounded-2xl shadow-sm border border-neutral-200 p-6 mb-4 hover:shadow-md transition-all duration-200;
+  }
+  
+  .avatar {
+    @apply rounded-full bg-gradient-to-br from-vibe-400 to-accent-400 flex items-center justify-center text-white font-semibold;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .status-approved {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .status-denied {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .status-pending {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  /* Gradients */
+  .gradient-vibe {
+    @apply bg-gradient-to-br from-vibe-500 via-vibe-600 to-accent-500;
+  }
+  
+  .gradient-trust {
+    @apply bg-gradient-to-br from-trust-500 to-trust-700;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-vibe-600 to-accent-600 bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
