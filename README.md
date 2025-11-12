@@ -7,15 +7,18 @@ TrustGrid is an AI-powered compliance protocol that empowers citizens with data 
 
 ```
 Frontend/
-├── citizen-app/          # Next.js - Citizen interface (SocialVibe)
-├── org-dashboard/        # React/Vite - Organization admin panel + Landing
+├── apps/
+│   ├── citizen-app/      # Next.js - Citizen interface (SocialVibe)
+│   └── org-dashboard/    # React/Vite - Organization admin panel + Landing
+├── shared/               # Shared components
 ├── package.json          # Root dependencies
-└── README.md            # This file
+├── README.md            # This file
+└── HANDOFF.md           # Quick continuation guide
 ```
 
 ## ✅ COMPLETED COMPONENTS
 
-### 1. **Organization Admin Dashboard** (`org-dashboard/`)
+### 1. **Organization Admin Dashboard** (`apps/org-dashboard/`)
 **Technology:** React + Vite + Tailwind CSS
 **Status:** ✅ COMPLETE - Matches PRD Requirements
 
@@ -28,7 +31,7 @@ Frontend/
 - ✅ **Dark Theme** - Consistent design matching landing page
 
 **PRD Mapping:**
-- ✅ Component 4: The Org Admin Dashboard (Next.js) → **COMPLETE**
+- ✅ Component 4: The Org Admin Dashboard → **COMPLETE**
 - ✅ Page 1: Login → **COMPLETE**
 - ✅ Page 2: Policy Management → **COMPLETE** 
 - ✅ Page 3: API Credentials → **COMPLETE**
@@ -36,11 +39,11 @@ Frontend/
 
 **Run Command:**
 ```bash
-cd org-dashboard
+cd apps/org-dashboard
 npm run dev
 ```
 
-### 2. **Citizen App** (`citizen-app/`)
+### 2. **Citizen App** (`apps/citizen-app/`)
 **Technology:** Next.js + Tailwind CSS + React Query
 **Status:** ✅ COMPLETE - Matches PRD Requirements
 
@@ -53,14 +56,14 @@ npm run dev
 - ✅ **Privacy Settings** - Complete Trust-Grid integration panel
 
 **PRD Mapping:**
-- ✅ Component 3: The Citizen App (Next.js) → **COMPLETE**
+- ✅ Component 3: The Citizen App → **COMPLETE**
 - ✅ Page 1: Login → **COMPLETE**
 - ✅ Page 2: Dashboard (Transparency Log & Consent) → **COMPLETE**
 - ✅ The "Handshake" Modal → **COMPLETE**
 
 **Run Command:**
 ```bash
-cd citizen-app
+cd apps/citizen-app
 npm run dev
 ```
 
@@ -87,166 +90,55 @@ npm run dev
 - `GET /api/v1/request-status/{request_id}` - Check request status
 - `GET /api/v1/citizen/requests/{user_id}` - Fetch citizen requests
 
-### 5. **Demo Flow Simulation**
-**Status:** ❌ NOT IMPLEMENTED
-**Priority:** MEDIUM
+## 🚀 NEXT DEVELOPER TASKS
 
-**Missing Features:**
-- Code editor simulation for Femi's backend
-- Server log display showing SDK responses
-- Real-time demo orchestration
-- Multi-window demo coordination
-
-## 🚀 CONTINUATION GUIDE
-
-### **Phase 1: Unified Application (PRIORITY 1)**
-
-**Goal:** Create single deployable frontend
-
-**Steps:**
-1. **Create New Unified App**
-   ```bash
-   cd Frontend/
-   npx create-react-app trust-grid-unified
-   cd trust-grid-unified
-   npm install react-router-dom axios tailwindcss
-   ```
-
-2. **App Structure:**
-   ```
-   src/
-   ├── pages/
-   │   ├── Landing.jsx           # From org-dashboard
-   │   ├── OrgLogin.jsx          # From org-dashboard  
-   │   ├── OrgDashboard.jsx      # From org-dashboard
-   │   ├── CitizenLogin.jsx      # From citizen-app
-   │   └── CitizenApp.jsx        # From citizen-app
-   ├── components/
-   │   ├── ConsentModal.jsx      # From citizen-app
-   │   ├── Header.jsx            # From org-dashboard
-   │   └── shared/               # Shared components
-   └── App.jsx
-   ```
-
-3. **Routing Setup:**
-   ```jsx
-   // App.jsx
-   <Routes>
-     <Route path="/" element={<Landing />} />
-     <Route path="/org/login" element={<OrgLogin />} />
-     <Route path="/org/dashboard" element={<OrgDashboard />} />
-     <Route path="/citizen/login" element={<CitizenLogin />} />
-     <Route path="/citizen/app" element={<CitizenApp />} />
-   </Routes>
-   ```
-
-### **Phase 2: API Integration (PRIORITY 2)**
-
-**Goal:** Connect frontend to real Trust-Grid API
-
-**Steps:**
-1. **Create API Client**
-   ```bash
-   # Create src/api/client.js
-   ```
-
-2. **Replace Mock Data:**
-   - Update `org-dashboard/src/pages/DashboardPage.jsx`
-   - Update `citizen-app/src/app/page.tsx`
-   - Add real API endpoints
-
-3. **Environment Setup:**
-   ```bash
-   # Add .env file
-   REACT_APP_API_URL=http://localhost:8000
-   ```
-
-### **Phase 3: Demo Enhancement (PRIORITY 3)**
-
-**Goal:** Add demo simulation features
-
-**Steps:**
-1. **Code Editor Component**
-   - Monaco Editor integration
-   - Python syntax highlighting
-   - Live code execution simulation
-
-2. **Server Log Component**
-   - Real-time log display
-   - SDK response simulation
-   - Error/success states
-
-3. **Demo Orchestrator**
-   - Multi-step demo flow
-   - Automated transitions
-   - Reset functionality
-
-## 📁 RECOMMENDED FOLDER REORGANIZATION
-
-```
-Frontend/
-├── apps/
-│   ├── citizen-app/          # Keep existing (for reference)
-│   └── org-dashboard/        # Keep existing (for reference)
-├── unified-demo/             # NEW - Main deployment app
-│   ├── src/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   ├── api/
-│   │   └── utils/
-│   ├── public/
-│   └── package.json
-├── shared/                   # NEW - Shared components
-│   ├── components/
-│   ├── styles/
-│   └── utils/
-└── README.md
+### **Task 1: Create Unified App (2-3 hours)**
+```bash
+cd Frontend/
+npx create-react-app unified-demo
+cd unified-demo
+npm install react-router-dom axios tailwindcss
 ```
 
-## 🔧 DEVELOPMENT COMMANDS
+**Copy these key files:**
+- `apps/org-dashboard/src/pages/DashboardPage.jsx` → `unified-demo/src/pages/OrgDashboard.jsx`
+- `apps/citizen-app/src/app/page.tsx` → `unified-demo/src/pages/CitizenApp.jsx`
+- `apps/citizen-app/src/components/ConsentModal.tsx` → `unified-demo/src/components/`
+
+### **Task 2: API Integration (1-2 hours)**
+Replace mock data with real API calls:
+- `POST /api/v1/org/policy`
+- `GET /api/v1/citizen/requests/{user_id}`
+- `POST /api/v1/respond-consent`
+
+### **Task 3: Deploy (30 minutes)**
+- Build unified app
+- Deploy to Vercel/Netlify
+- Get single demo URL
+
+## 🔧 Development Commands
 
 **Current Apps:**
 ```bash
 # Organization Dashboard
-cd org-dashboard && npm run dev     # Port 5173
+cd apps/org-dashboard && npm run dev     # Port 5173
 
 # Citizen App  
-cd citizen-app && npm run dev       # Port 3000
+cd apps/citizen-app && npm run dev       # Port 3000
 ```
 
-**Next Steps:**
+**Create Unified:**
 ```bash
-# Create unified app
 npx create-react-app unified-demo
-cd unified-demo
-npm install react-router-dom axios @tailwindcss/forms
-
-# Start development
-npm start                           # Port 3000
+# Copy components from apps/ folders
+# Add routing between org and citizen views
 ```
 
-## 🎯 IMMEDIATE NEXT ACTIONS
+## 📞 Key Files for Next Developer
 
-1. **Create `unified-demo/` app** - Combine both existing apps
-2. **Set up API integration** - Connect to FastAPI backend  
-3. **Test demo flow** - Ensure org → citizen handshake works
-4. **Deploy single URL** - For hackathon demonstration
+- `apps/org-dashboard/src/pages/DashboardPage.jsx` - Complete org admin interface
+- `apps/citizen-app/src/app/page.tsx` - Main citizen app with SocialVibe
+- `apps/citizen-app/src/components/ConsentModal.tsx` - PRD-compliant consent modal
+- `HANDOFF.md` - Quick start guide for immediate continuation
 
-## 📞 HANDOFF NOTES
-
-**What Works:**
-- Both apps run independently and match PRD requirements
-- UI/UX is complete and polished
-- Component architecture is solid
-
-**What Needs Work:**
-- API integration (currently mock data)
-- Single deployment target
-- Real-time demo coordination
-
-**Key Files to Understand:**
-- `org-dashboard/src/pages/DashboardPage.jsx` - Org admin interface
-- `citizen-app/src/app/page.tsx` - Main citizen app
-- `citizen-app/src/components/ConsentModal.tsx` - PRD consent modal
-
-The foundation is solid - focus on unification and API integration for a winning demo!
+**The foundation is complete - just needs unification and API connection for deployment!**
