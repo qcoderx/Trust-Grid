@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import apiClient from '../../api';
 
-const ApiKeysTable = () => {
+const ApiKeysTable = forwardRef((props, ref) => {
   const [apiKeys, setApiKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,6 +10,11 @@ const ApiKeysTable = () => {
   useEffect(() => {
     fetchApiKeys();
   }, []);
+
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, () => ({
+    refreshKeys: fetchApiKeys
+  }));
 
   const fetchApiKeys = async () => {
     try {
@@ -25,14 +30,7 @@ const ApiKeysTable = () => {
     }
   };
 
-  const handleReveal = (id, fullKey) => {
-    setRevealedKey(revealedKey === id ? null : id);
-  };
 
-  const handleCopy = (key) => {
-    navigator.clipboard.writeText(key);
-    // You could add a toast notification here
-  };
 
   const handleRegenerate = (id) => {
     // Handle regenerate logic
@@ -62,6 +60,21 @@ const ApiKeysTable = () => {
     return (
       <div className="w-full px-4 py-8 text-center">
         <div className="text-red-400">{error}</div>
+        <button 
+          onClick={fetchApiKeys}
+          className="mt-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-green-600 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (apiKeys.length === 0) {
+    return (
+      <div className="w-full px-4 py-8 text-center">
+        <div className="text-gray-400 mb-4">No API keys found</div>
+        <p className="text-gray-500 text-sm">Create your first API key to get started with the TrustGrid API.</p>
       </div>
     );
   }
@@ -85,7 +98,8 @@ const ApiKeysTable = () => {
                 {apiKey.name}
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-300 font-mono">
-                {revealedKey === apiKey.id ? apiKey.key : `${apiKey.key.substring(0, 12)}...`}
+                <span className="text-gray-500">••••••••••••{apiKey.key_hash?.substring(-4) || '••••'}</span>
+                <span className="ml-2 text-xs text-gray-600">(Hash stored securely)</span>
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-sm">
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -101,24 +115,12 @@ const ApiKeysTable = () => {
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                 <div className="flex items-center justify-end gap-3">
-                  {/* Reveal Button */}
+                  {/* Info Button */}
                   <button
-                    onClick={() => handleReveal(apiKey.id, apiKey.key)}
-                    className={`${apiKey.status === 'revoked' ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-primary'}`}
-                    disabled={apiKey.status === 'revoked'}
+                    title="API keys are only shown once during creation for security"
+                    className="text-gray-400 hover:text-primary"
                   >
-                    <span className="material-symbols-outlined">
-                      {revealedKey === apiKey.id ? 'visibility_off' : 'visibility'}
-                    </span>
-                  </button>
-
-                  {/* Copy Button */}
-                  <button
-                    onClick={() => handleCopy(apiKey.key)}
-                    className={`${apiKey.status === 'revoked' ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-primary'}`}
-                    disabled={apiKey.status === 'revoked'}
-                  >
-                    <span className="material-symbols-outlined">content_copy</span>
+                    <span className="material-symbols-outlined">info</span>
                   </button>
 
                   {/* Regenerate Button */}
@@ -145,6 +147,6 @@ const ApiKeysTable = () => {
       </table>
     </div>
   );
-};
+});
 
 export default ApiKeysTable;

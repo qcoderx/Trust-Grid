@@ -49,6 +49,33 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  // Organization authentication
+  async registerOrganization(orgName) {
+    return this.request('/api/v1/org/register', {
+      method: 'POST',
+      body: JSON.stringify({ org_name: orgName }),
+    });
+  }
+
+  async loginOrganization(apiKey) {
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+    
+    const body = new URLSearchParams();
+    body.append('api_key', apiKey);
+    
+    return this.request('/api/v1/org/login', {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+    });
+  }
+
+  async getOrganizationDetails() {
+    return this.request('/api/v1/org/me');
+  }
 }
 
 export default new ApiClient();

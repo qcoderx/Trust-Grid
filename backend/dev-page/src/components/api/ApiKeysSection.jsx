@@ -1,13 +1,24 @@
+import { useState, useRef } from 'react';
 import ApiKeysTable from './ApiKeysTable';
 
 const ApiKeysSection = ({ onCreateApiKey, loading, error }) => {
+  const tableRef = useRef();
+  
+  const handleCreateApiKey = async (name) => {
+    await onCreateApiKey(name);
+    // Refresh the table after creating a new key
+    if (tableRef.current?.refreshKeys) {
+      tableRef.current.refreshKeys();
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {/* Section Header & Create Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 pt-5">
         <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">API Keys</h2>
         <button
-          onClick={() => onCreateApiKey('New API Key')}
+          onClick={() => handleCreateApiKey('New API Key')}
           disabled={loading}
           className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-black text-sm font-bold leading-normal tracking-[0.015em] self-start sm:self-center hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -22,7 +33,7 @@ const ApiKeysSection = ({ onCreateApiKey, loading, error }) => {
       )}
 
       {/* API Keys Table */}
-      <ApiKeysTable />
+      <ApiKeysTable ref={tableRef} />
     </div>
   );
 };

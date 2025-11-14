@@ -3,6 +3,7 @@ import ProfileHeader from '../components/api/ProfileHeader';
 import ApiKeysSection from '../components/api/ApiKeysSection';
 import ApiKeyModal from '../components/api/ApiKeyModal';
 import Header from '../components/Header';
+import { useAuth } from '../context/AuthContext';
 import apiClient from '../api';
 
 const ProfilePage = () => {
@@ -10,13 +11,36 @@ const ProfilePage = () => {
   const [newApiKey, setNewApiKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background-light dark:bg-background-dark">
+        <div className="layout-container flex h-full grow flex-col">
+          <div className="mb-8">
+            <Header />
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-black dark:text-white mb-4">
+                Authentication Required
+              </h1>
+              <p className="text-black/60 dark:text-white/60 mb-6">
+                Please log in to access your developer profile and manage API keys.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreateApiKey = async (name = 'New API Key') => {
     try {
       setLoading(true);
       setError(null);
-      const createdKey = await apiClient.createApiKey(name);
-      setNewApiKey(createdKey.key);
+      const response = await apiClient.createApiKey(name);
+      setNewApiKey(response.api_key);
       setShowModal(true);
     } catch (err) {
       setError('Failed to create API key');

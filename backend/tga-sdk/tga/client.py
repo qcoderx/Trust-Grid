@@ -20,7 +20,7 @@ class TrustGridClient:
         self.api_key = api_key
         self.base_url = base_url
         self.session = requests.Session()
-        self.session.headers.update({"Authorization": f"Bearer {api_key}"})
+        self.session.headers.update({"X-API-Key": api_key})
 
     def _post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"

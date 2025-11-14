@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const DocsSidebar = () => {
+const DocsSidebar = ({ onLoginClick }) => {
   const [openSections, setOpenSections] = useState({
     gettingStarted: true,
     features: true,
@@ -212,9 +212,12 @@ const DocsSidebar = () => {
 
         {/* API Keys at the bottom */}
         <div className="mt-auto">
-          <a href="#api-keys" className="block text-gray-400 hover:text-white py-3 px-3 text-sm rounded-md hover:bg-gray-900/50 transition-colors border border-gray-800 hover:border-gray-700">
-            API Keys
-          </a>
+          <button 
+            onClick={onLoginClick}
+            className="w-full text-left text-gray-400 hover:text-white py-3 px-3 text-sm rounded-md hover:bg-gray-900/50 transition-colors border border-gray-800 hover:border-gray-700"
+          >
+            Get API Keys
+          </button>
         </div>
       </nav>
     </aside>

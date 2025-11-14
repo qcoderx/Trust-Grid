@@ -155,10 +155,8 @@ async def login_user(user: UserCreate):
     if not existing_user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    # Verify password using SHA256
-    import hashlib
-    expected_hash = hashlib.sha256(user.password.encode()).hexdigest()
-    if expected_hash != existing_user["password"]:
+    # Verify password using bcrypt (consistent with registration)
+    if not pwd_context.verify(user.password, existing_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Return user details (excluding password)

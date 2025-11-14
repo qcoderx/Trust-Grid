@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-const DocsContent = () => {
+const DocsContent = ({ onLoginClick }) => {
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -104,19 +104,27 @@ const DocsContent = () => {
           
           <div className="bg-black rounded-xl p-6 mb-6 border border-white/10">
             <div className="flex justify-between items-center mb-4">
-              <h4 className="text-white font-semibold">SDK Initialization</h4>
+              <h4 className="text-white font-semibold">Python SDK Usage</h4>
               <button className="text-white/60 hover:text-white text-sm">Copy</button>
             </div>
             <pre className="text-green-400 text-sm overflow-x-auto">
-{`// Initialize TrustGrid SDK
-TrustGrid.init({
-  apiBaseUrl: 'https://api.trustgrid.ng/v1',
-  tenantId: 'your-tenant-id',
-  defaultPurposes: ['transaction_processing', 'marketing']
-});
+{`# Install the TGA SDK
+pip install tga
 
-// Record user consent
-TrustGrid.recordConsent('user_123', 'transaction_processing', 'granted');`}
+# Initialize TrustGrid Client
+from tga import TrustGridClient
+
+client = TrustGridClient(api_key="your-api-key")
+
+# Register an organization
+org = client.register_organization("MyOrg")
+
+# Request data access
+response = client.request_data_access(
+    user_id="user123", 
+    data_type="email", 
+    purpose="marketing"
+)`}
             </pre>
           </div>
         </div>
@@ -130,12 +138,12 @@ TrustGrid.recordConsent('user_123', 'transaction_processing', 'granted');`}
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-black/30 p-4 rounded-lg">
-                <h4 className="text-white font-semibold mb-2">JavaScript/TypeScript</h4>
-                <code className="text-green-400 text-sm">npm install @trustgrid/sdk</code>
+                <h4 className="text-white font-semibold mb-2">Python SDK</h4>
+                <code className="text-green-400 text-sm">pip install tga</code>
               </div>
               <div className="bg-black/30 p-4 rounded-lg">
-                <h4 className="text-white font-semibold mb-2">Python</h4>
-                <code className="text-green-400 text-sm">pip install trustgrid-sdk</code>
+                <h4 className="text-white font-semibold mb-2">JavaScript/TypeScript</h4>
+                <code className="text-green-400 text-sm">Coming Soon</code>
               </div>
             </div>
           </div>
@@ -156,11 +164,18 @@ TrustGrid.recordConsent('user_123', 'transaction_processing', 'granted');`}
             </p>
             <div className="bg-black rounded-xl p-4 mb-4">
               <pre className="text-green-400 text-sm overflow-x-auto">
-{`// Record consent
-TrustGrid.recordConsent('user_123', 'marketing', 'granted');
+{`# Request data access (requires user consent)
+response = client.request_data_access(
+    user_id="user123",
+    data_type="email", 
+    purpose="marketing"
+)
 
-// Revoke consent  
-TrustGrid.revokeConsent('user_123', 'marketing');`}
+# Get API keys for your organization
+api_keys = client.get_api_keys()
+
+# Create a new API key
+new_key = client.create_api_key("Production Key")`}
               </pre>
             </div>
           </div>
@@ -213,7 +228,7 @@ TrustGrid.revokeConsent('user_123', 'marketing');`}
             </p>
             <div className="bg-black p-4 rounded-lg mb-4">
               <code className="text-green-400 text-sm">
-                Authorization: Bearer YOUR_API_KEY
+                X-API-Key: YOUR_API_KEY
               </code>
             </div>
             <p className="text-gray-300">
@@ -318,6 +333,51 @@ TrustGrid.revokeConsent('user_123', 'marketing');`}
                 </div>
                 <p className="text-gray-300 mb-4">Retrieve current organization details and settings.</p>
               </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-mono">POST</span>
+                  <code className="text-white font-mono">/api/v1/org/register</code>
+                  <span className="text-gray-400 text-sm">Register Organization</span>
+                </div>
+                <p className="text-gray-300 mb-4">Register a new organization and get your first API key.</p>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-mono">POST</span>
+                  <code className="text-white font-mono">/api/v1/org/login</code>
+                  <span className="text-gray-400 text-sm">Organization Login</span>
+                </div>
+                <p className="text-gray-300 mb-4">Login with your API key to access organization features.</p>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-mono">GET</span>
+                  <code className="text-white font-mono">/api/v1/org/api-keys</code>
+                  <span className="text-gray-400 text-sm">Get API Keys</span>
+                </div>
+                <p className="text-gray-300 mb-4">Retrieve all API keys for your organization.</p>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-mono">POST</span>
+                  <code className="text-white font-mono">/api/v1/org/api-keys</code>
+                  <span className="text-gray-400 text-sm">Create API Key</span>
+                </div>
+                <p className="text-gray-300 mb-4">Generate a new API key for your organization.</p>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-mono">POST</span>
+                  <code className="text-white font-mono">/api/v1/org/api-keys/&#123;key_id&#125;/revoke</code>
+                  <span className="text-gray-400 text-sm">Revoke API Key</span>
+                </div>
+                <p className="text-gray-300 mb-4">Revoke an existing API key to disable access.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -346,13 +406,13 @@ TrustGrid.revokeConsent('user_123', 'marketing');`}
                 Create, view, and manage your API keys in the secure profile section
                 </p>
             </div>
-            <Link 
-                to="/profile"
+            <button 
+                onClick={onLoginClick}
                 className="bg-primary hover:bg-green-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
             >
                 <span className="material-symbols-outlined text-lg">key</span>
-                API Keys
-            </Link>
+                Get API Keys
+            </button>
             </div>
             
             <div className="grid md:grid-cols-2 gap-4 mt-6">
