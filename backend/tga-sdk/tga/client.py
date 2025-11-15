@@ -20,11 +20,18 @@ class TrustGridClient:
         self.api_key = api_key
         self.base_url = base_url
         self.session = requests.Session()
-        self.session.headers.update({"X-API-Key": api_key})
+        self.session.headers.update({
+            "X-API-Key": api_key,
+            "Content-Type": "application/json"
+        })
 
     def _post(self, endpoint: str, data: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}{endpoint}"
+        print(f"🔍 POST {url}")
+        print(f"📋 Headers: {dict(self.session.headers)}")
+        print(f"📦 Data: {data}")
         response = self.session.post(url, json=data)
+        print(f"📊 Response: {response.status_code}")
         response.raise_for_status()
         return response.json()
 

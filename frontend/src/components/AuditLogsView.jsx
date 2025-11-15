@@ -8,7 +8,7 @@ const AuditLogsView = ({ userId }) => {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/citizen/${userId}/log`);
+        const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${userId}/log`);
         if (response.ok) {
           const data = await response.json();
           setLogs(data);

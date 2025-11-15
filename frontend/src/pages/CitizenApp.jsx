@@ -19,7 +19,7 @@ const CitizenApp = () => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('http://127.0.0.1:8000/api/v1/citizen/login', {
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ const CitizenApp = () => {
   const handleRegister = async (username, password) => {
     try {
       setLoading(true);
-      const response = await fetch('http://127.0.0.1:8000/api/v1/citizen/register', {
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ const CitizenApp = () => {
 
   const fetchRequests = async (userId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/v1/citizen/${userId}/log`);
+      const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${userId}/log`);
       if (response.ok) {
         const data = await response.json();
         setRequests(data);
@@ -132,7 +132,7 @@ const CitizenApp = () => {
 
   const handleConsentResponse = async (requestId, response) => {
     try {
-      const apiResponse = await fetch('http://127.0.0.1:8000/api/v1/citizen/respond', {
+      const apiResponse = await fetch('https://trust-grid.onrender.com/api/v1/citizen/respond', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ const CitizenApp = () => {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/v1/citizen/${user.username}/requests`);
+        const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${user.username}/requests`);
         if (response.ok) {
           const pendingRequests = await response.json();
           const pending = pendingRequests.find(req => req.status === 'pending');

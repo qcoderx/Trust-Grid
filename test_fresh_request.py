@@ -8,7 +8,7 @@ import json
 import time
 
 # Configuration
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "https://trust-grid.onrender.com"
 API_KEY = "tg_live_dE-0H6PWRNC4Y8yP6XP9hA"
 
 def make_fresh_request():

@@ -7,7 +7,7 @@ import requests
 import json
 
 # Configuration
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "https://trust-grid.onrender.com"
 
 def check_user_data(user_id: str):
     """Check current user data"""
