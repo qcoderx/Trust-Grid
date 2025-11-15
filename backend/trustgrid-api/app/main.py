@@ -48,9 +48,18 @@ import shutil
 
 # --- App Setup ---
 app = FastAPI(
-    title="Trust-Grid API",
-    description="GenAI-powered compliance regulator (v5.0 - Dynamic Keys).", # <-- Updated version
+    title="TrustGrid API",
+    description="🛡️ Nigeria's AI-powered privacy compliance platform. Automated NDPR compliance for businesses and transparency for citizens.",
     version="5.0.0",
+    contact={
+        "name": "TrustGrid Technologies",
+        "url": "https://trustgrid.ng",
+        "email": "developers@trustgrid.ng"
+    },
+    license_info={
+        "name": "TrustGrid Developer License",
+        "url": "https://trustgrid.ng/license"
+    }
 )
 
 # --- Logging, CORS, pwd_context, UPLOAD_DIRECTORY Setup ---
@@ -68,6 +77,23 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 UPLOAD_DIRECTORY = "uploads"
 os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
 
+
+# --- Root Endpoint ---
+@app.get("/", tags=["Root"])
+async def root():
+    return {
+        "message": "🛡️ TrustGrid API - Nigeria's Privacy-First Compliance Platform",
+        "version": "5.0.0",
+        "status": "active",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "citizen_api": "/api/v1/citizen/*",
+            "organization_api": "/api/v1/org/*",
+            "data_requests": "/api/v1/request-data"
+        },
+        "description": "AI-powered NDPR compliance for Nigerian businesses and citizens"
+    }
 
 # --- Health Check ---
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
