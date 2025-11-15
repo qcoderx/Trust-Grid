@@ -20,13 +20,6 @@ const DashboardPage = () => {
       setLoading(true);
       setError(null);
       
-      // First test if backend is accessible
-      try {
-        await ApiClient.healthCheck();
-      } catch (healthError) {
-        throw new Error('Backend service is not accessible. Please try again later.');
-      }
-      
       ApiClient.setApiKey(apiKey);
       const userData = await ApiClient.loginOrganization(apiKey);
       setUser(userData);
@@ -35,11 +28,11 @@ const DashboardPage = () => {
     } catch (error) {
       console.error('Login error:', error);
       if (error.message.includes('500')) {
-        setError('Server error. The backend service may be starting up. Please wait a moment and try again.');
+        setError('Server error. Please wait and try again.');
       } else if (error.message.includes('401') || error.message.includes('Invalid')) {
-        setError('Invalid API key. Please check and try again.');
+        setError('Invalid API key.');
       } else {
-        setError(`Login failed: ${error.message}`);
+        setError('Login failed.');
       }
     } finally {
       setLoading(false);
@@ -51,13 +44,6 @@ const DashboardPage = () => {
       setLoading(true);
       setError(null);
       
-      // First test if backend is accessible
-      try {
-        await ApiClient.healthCheck();
-      } catch (healthError) {
-        throw new Error('Backend service is not accessible. Please try again later.');
-      }
-      
       const result = await ApiClient.registerOrganization(orgName);
       setUser(result.organization);
       setNewApiKey(result.api_key);
@@ -68,11 +54,11 @@ const DashboardPage = () => {
     } catch (error) {
       console.error('Register error:', error);
       if (error.message.includes('500')) {
-        setError('Server error. The backend service may be starting up. Please wait a moment and try again.');
+        setError('Server error. Please wait and try again.');
       } else if (error.message.includes('already exists')) {
-        setError('Organization name already exists. Please choose a different name.');
+        setError('Organization name already exists.');
       } else {
-        setError(`Registration failed: ${error.message}`);
+        setError('Registration failed. Please try again.');
       }
     } finally {
       setLoading(false);
