@@ -46,7 +46,7 @@ try:
     """
     # This model MUST be multi-modal (1.5-flash or 1.5-pro)
     verifier_model = genai.GenerativeModel(
-        "gemini-1.5-flash", 
+        "gemini-2.5-flash", 
         system_instruction=verifier_system_instruction
     )
     

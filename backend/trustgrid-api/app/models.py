@@ -45,12 +45,68 @@ def validate_object_id(v):
 # --- End of Teammate's Code ---
 
 # --- NEW: Model for Org Registration (Input) ---
+class OrganizationRegistration(BaseModel):
+    org_name: str
+    
+    class Config:
+        extra = "forbid"  # Reject extra fields
+
+# Keep OrgCreate for backward compatibility
 class OrgCreate(BaseModel):
     org_name: str
+    
+    class Config:
+        extra = "forbid"  # Reject extra fields
 
 class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     username: str
+    # Personal Information
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[Literal["Male", "Female", "Other"]] = None
+    # Address Information
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = "Nigeria"
+    postal_code: Optional[str] = None
+    # Identity Documents
+    bvn: Optional[str] = None
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    drivers_license: Optional[str] = None
+    voters_card: Optional[str] = None
+    # Financial Information
+    bank_account_number: Optional[str] = None
+    bank_name: Optional[str] = None
+    # Employment Information
+    occupation: Optional[str] = None
+    employer: Optional[str] = None
+    monthly_income: Optional[str] = None
+    # Health Information
+    blood_type: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    # Social Information
+    marital_status: Optional[Literal["Single", "Married", "Divorced", "Widowed"]] = None
+    education_level: Optional[str] = None
+    social_media_handles: Optional[str] = None
+    # Biometric Data
+    fingerprint_data: Optional[str] = None
+    facial_recognition_data: Optional[str] = None
+    # Digital Footprint
+    ip_address: Optional[str] = None
+    device_id: Optional[str] = None
+    browser_fingerprint: Optional[str] = None
+    location_data: Optional[str] = None
+    # Preferences
+    language_preference: Optional[str] = "English"
+    communication_preferences: Optional[str] = None
+    manual_approval_required: Optional[bool] = False  # Auto-approve if False
 
     class Config:
         validate_by_name = True
@@ -59,13 +115,43 @@ class User(BaseModel):
 
 class UserCreate(BaseModel):
     username: str
-    password: str # This was in your main.py but missing here
+    password: str
+
+class UserProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[Literal["Male", "Female", "Other"]] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
+    bvn: Optional[str] = None
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    drivers_license: Optional[str] = None
+    voters_card: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_name: Optional[str] = None
+    occupation: Optional[str] = None
+    employer: Optional[str] = None
+    monthly_income: Optional[str] = None
+    blood_type: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    emergency_contact: Optional[str] = None
+    marital_status: Optional[Literal["Single", "Married", "Divorced", "Widowed"]] = None
+    education_level: Optional[str] = None
+    social_media_handles: Optional[str] = None
+    manual_approval_required: Optional[bool] = None
 
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     org_name: str
     policy_text: Optional[str] = None
-    # --- api_key REMOVED ---
+    data_types_collected: Optional[str] = None
     
     # Verification fields
     company_description: Optional[str] = None
@@ -99,10 +185,13 @@ class ConsentLog(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     user_id: str
     org_id: PyObjectId
+    org_name: Optional[str] = None  # Store org name for display
     data_type: str
     purpose: str
-    status: Literal["pending", "approved", "denied"] 
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc)) # Modernized
+    status: Literal["pending", "approved", "denied", "auto_approved"] 
+    approval_method: Optional[Literal["manual", "auto"]] = None
+    ai_reason: Optional[str] = None  # Store AI compliance reason
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         validate_by_name = True

@@ -17,12 +17,12 @@ from app.database import (
     db as check_db_connection,
 )
 from app.models import (
-    User, UserCreate,
+    User, UserCreate, UserProfileUpdate,
     Organization, OrgPolicyUpdate,
     DataRequestBody, ConsentLog, ConsentResponseBody,
     ApiKey, ApiKeyCreate, ApiKeyResponse, # <-- Updated/New models
     PyObjectId, validate_object_id,
-    OrgCreate, OrgRegistrationResponse # <-- New models for registration
+    OrgCreate, OrganizationRegistration, OrgRegistrationResponse # <-- New models for registration
 )
 from app.auth import get_current_org
 from app.ai_compliance import (
@@ -40,7 +40,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 import uvicorn
 import logging
-from typing import Literal, Annotated, List # <-- Add List
+from typing import Literal, List
 import google.generativeai as genai
 import os
 import shutil
@@ -83,14 +83,21 @@ async def health_check():
 
 # --- Component 0: NEW Org Registration ---
 @app.post("/api/v1/org/register", response_model=OrgRegistrationResponse, tags=["Organization (SME-Femi)"])
-async def register_organization(org_create: OrgCreate):
+async def register_organization(org_create: OrganizationRegistration):
     """
     Register a new organization and generate its first API key.
     The API key is returned ONCE upon registration. Store it securely.
     """
+    logger.info(f"Registration request received for org: {org_create.org_name}")
+    
     # Check if organization name already exists to avoid duplicates
-    if organizations_collection.find_one({"org_name": org_create.org_name}):
-        raise HTTPException(status_code=400, detail="Organization name already exists.")
+    existing_org = organizations_collection.find_one({"org_name": org_create.org_name})
+    if existing_org:
+        logger.warning(f"Organization name '{org_create.org_name}' already exists - deleting for re-registration")
+        # For development: delete existing org and its API keys
+        organizations_collection.delete_one({"_id": existing_org["_id"]})
+        api_keys_collection.delete_many({"org_id": existing_org["_id"]})
+        logger.info(f"Deleted existing organization '{org_create.org_name}' for re-registration")
 
     # --- Create the Organization Document ---
     new_org_data = {
@@ -98,6 +105,7 @@ async def register_organization(org_create: OrgCreate):
         "verification_status": "unverified", # Start as unverified
         # Initialize other fields required by the Organization model
         "policy_text": None,
+        "data_types_collected": None,
         "company_description": None,
         "company_category": "Other",
         "website_url": None,
@@ -136,8 +144,15 @@ async def register_organization(org_create: OrgCreate):
 # (No changes needed for citizen endpoints based on dynamic keys)
 @app.post("/api/v1/citizen/register", response_model=User, status_code=status.HTTP_201_CREATED, tags=["Citizen (Ayo)"])
 async def create_user(user: UserCreate):
+    logger.info(f"Citizen registration request for username: {user.username}")
+    
     existing_user = users_collection.find_one({"username": user.username})
-    if existing_user: raise HTTPException(status_code=400, detail="Username already exists")
+    if existing_user: 
+        logger.warning(f"Username '{user.username}' already exists - deleting for re-registration")
+        # For development: delete existing user for re-registration
+        users_collection.delete_one({"_id": existing_user["_id"]})
+        logger.info(f"Deleted existing user '{user.username}' for re-registration")
+    
     # Hash user password on creation
     user_doc = {"username": user.username, "password": pwd_context.hash(user.password)}
     result = users_collection.insert_one(user_doc)
@@ -169,31 +184,86 @@ async def get_pending_requests(user_id: str):
 
 @app.post("/api/v1/citizen/respond", status_code=status.HTTP_200_OK, tags=["Citizen (Ayo)"])
 async def respond_to_request(body: ConsentResponseBody):
-    try: request_oid = validate_object_id(body.request_id) # Use teammate's validator
+    try: request_oid = validate_object_id(body.request_id)
     except Exception: raise HTTPException(status_code=400, detail="Invalid request_id format.")
+    
+    # Get the request details before updating
+    request_doc = consent_log_collection.find_one({"_id": request_oid, "status": "pending"})
+    if not request_doc:
+        raise HTTPException(status_code=404, detail="Request not found or already actioned.")
+    
+    # Update the request status
     result = consent_log_collection.update_one(
         {"_id": request_oid, "status": "pending"},
-        {"$set": {"status": body.decision, "timestamp": datetime.now(timezone.utc)}},
+        {"$set": {"status": body.decision, "approval_method": "manual", "timestamp": datetime.now(timezone.utc)}},
     )
-    if result.matched_count == 0: raise HTTPException(status_code=404, detail="Request not found or already actioned.")
-    return {"message": f"Consent status updated to '{body.decision}'."}
+    
+    response_data = {"message": f"Consent status updated to '{body.decision}'."}
+    
+    # If approved, include the requested data
+    if body.decision == "approved":
+        user = users_collection.find_one({"username": request_doc["user_id"]})
+        if user:
+            requested_data = user.get(request_doc["data_type"])
+            response_data["data"] = requested_data
+            logger.info(f"✅ Manual approval granted - returning {request_doc['data_type']} data for {request_doc['user_id']}")
+    
+    return response_data
 
 @app.get("/api/v1/citizen/{user_id}/log", response_model=List[ConsentLog], tags=["Citizen (Ayo)"])
 async def get_citizen_transparency_log(user_id: str):
     logs = consent_log_collection.find({"user_id": user_id}).sort("timestamp", -1)
     return list(logs)
 
+@app.put("/api/v1/citizen/{user_id}/profile", response_model=User, tags=["Citizen (Ayo)"])
+async def update_citizen_profile(user_id: str, profile_data: UserProfileUpdate):
+    """Update citizen profile with comprehensive data"""
+    logger.info(f"Profile update request for user: {user_id}")
+    
+    # Find user by username (user_id)
+    existing_user = users_collection.find_one({"username": user_id})
+    if not existing_user:
+        logger.error(f"User '{user_id}' not found in database")
+        raise HTTPException(status_code=404, detail=f"User '{user_id}' not found")
+    
+    # Update only provided fields
+    update_data = {k: v for k, v in profile_data.dict().items() if v is not None}
+    logger.info(f"Updating user '{user_id}' with {len(update_data)} fields")
+    
+    if update_data:
+        updated_user = users_collection.find_one_and_update(
+            {"username": user_id},
+            {"$set": update_data},
+            return_document=pymongo.ReturnDocument.AFTER
+        )
+        logger.info(f"Successfully updated profile for user '{user_id}'")
+        return User(**updated_user)
+    
+    logger.info(f"No updates needed for user '{user_id}'")
+    return User(**existing_user)
+
+@app.get("/api/v1/citizen/{user_id}/profile", response_model=User, tags=["Citizen (Ayo)"])
+async def get_citizen_profile(user_id: str):
+    """Get citizen profile data"""
+    user = users_collection.find_one({"username": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return User(**user)
+
 # --- Component 2 & 3: Org API Endpoints (SME-Femi's Backend) ---
 # (The authentication `Depends(get_current_org)` now works dynamically using app/auth.py)
 
 @app.post("/api/v1/org/submit-for-verification", tags=["Organization (SME-Femi)"])
 async def submit_for_verification(
-    # Using Annotated and Form for multipart/form-data
-    org_name: Annotated[str, Form()], company_description: Annotated[str, Form()],
-    company_category: Annotated[Literal["Fintech", "E-commerce", "Social Media", "Dating", "Healthcare", "Gaming", "Other"], Form()],
-    website_url: Annotated[str, Form()], business_registration_number: Annotated[str, Form()],
-    cac_certificate: Annotated[UploadFile, File()],
-    org: Organization = Depends(get_current_org) # Auth check happens here
+    org_name: str = Form(...), 
+    company_description: str = Form(...),
+    company_category: Literal["Fintech", "E-commerce", "Social Media", "Dating", "Healthcare", "Gaming", "Other"] = Form(...),
+    website_url: str = Form(...), 
+    business_registration_number: str = Form(...),
+    policy_text: str = Form(...),
+    data_types_collected: str = Form(...),
+    cac_certificate: UploadFile = File(...),
+    org: Organization = Depends(get_current_org)
 ):
     """
     Submit organization details and CAC certificate for AI verification.
@@ -247,6 +317,8 @@ async def submit_for_verification(
         "company_category": company_category,
         "website_url": website_url,
         "business_registration_number": business_registration_number,
+        "policy_text": policy_text, # Store the privacy policy
+        "data_types_collected": data_types_collected, # Store data collection info
         "cac_certificate_url": file_path, # Store the local path
         "verification_status": ai_result["decision"].lower() # "verified" or "rejected"
     }
@@ -274,20 +346,79 @@ async def submit_for_verification(
 
 @app.post("/api/v1/request-data", status_code=status.HTTP_202_ACCEPTED, tags=["Organization (SME-Femi)"])
 async def request_data_access(body: DataRequestBody, org: Organization = Depends(get_current_org)):
-    # (No logic changes needed inside this function - relies on auth and AI checks)
-    if org.verification_status != "verified": raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="COMPLIANCE VIOLATION: Your organization is not verified.")
+    if org.verification_status != "verified": 
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="COMPLIANCE VIOLATION: Your organization is not verified.")
+    
     user = users_collection.find_one({"username": body.user_id})
-    if not user: raise HTTPException(status_code=404, detail=f"User '{body.user_id}' not found.")
-    if not org.policy_text: raise HTTPException(status_code=400, detail="COMPLIANCE VIOLATION: No privacy policy found.")
+    if not user: 
+        raise HTTPException(status_code=404, detail=f"User '{body.user_id}' not found.")
+    
+    if not org.policy_text: 
+        raise HTTPException(status_code=400, detail="COMPLIANCE VIOLATION: No privacy policy found.")
+    
     logger.info(f"Checking data minimization for verified org {org.org_name}...")
-    ai_result = await check_policy_compliance(policy_text=org.policy_text, data_type=body.data_type, purpose=body.purpose, company_category=org.company_category)
+    ai_result = await check_policy_compliance(
+        policy_text=org.policy_text, 
+        data_type=body.data_type, 
+        purpose=body.purpose, 
+        company_category=org.company_category
+    )
+    
     if ai_result["decision"] == "VIOLATION":
         logger.warning(f"🔥 VIOLATION DETECTED: {ai_result['reason']}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"COMPLIANCE VIOLATION: {ai_result['reason']}")
-    logger.info(f"✅ AI Approved. Reason: {ai_result['reason']}. Logging pending request.")
-    consent_request = {"user_id": body.user_id, "org_id": validate_object_id(org.id), "data_type": body.data_type, "purpose": body.purpose, "status": "pending", "timestamp": datetime.now(timezone.utc)}
-    result = consent_log_collection.insert_one(consent_request)
-    return {"message": "AI analysis passed.", "status": "pending", "request_id": str(result.inserted_id), "ai_reason": ai_result["reason"]}
+    
+    # Check if user requires manual approval (default is auto-approval)
+    requires_manual_approval = user.get('manual_approval_required', False)
+    logger.info(f"🔍 DEBUG: User {body.user_id} manual_approval_required = {user.get('manual_approval_required')} (type: {type(user.get('manual_approval_required'))})")
+    logger.info(f"🔍 DEBUG: requires_manual_approval = {requires_manual_approval}")
+    
+    if requires_manual_approval:
+        # Create pending request for manual approval
+        logger.info(f"✅ AI Approved but user requires manual approval. Creating pending request.")
+        consent_request = {
+            "user_id": body.user_id, 
+            "org_id": validate_object_id(org.id),
+            "org_name": org.org_name,
+            "data_type": body.data_type, 
+            "purpose": body.purpose, 
+            "status": "pending",
+            "approval_method": "manual",
+            "ai_reason": ai_result["reason"],
+            "timestamp": datetime.now(timezone.utc)
+        }
+        result = consent_log_collection.insert_one(consent_request)
+        return {
+            "message": "AI analysis passed. Awaiting user approval.", 
+            "status": "pending", 
+            "request_id": str(result.inserted_id), 
+            "ai_reason": ai_result["reason"]
+        }
+    else:
+        # Auto-approve since AI passed and user allows it
+        logger.info(f"✅ AI Approved and auto-approving for user {body.user_id}")
+        consent_request = {
+            "user_id": body.user_id, 
+            "org_id": validate_object_id(org.id),
+            "org_name": org.org_name,
+            "data_type": body.data_type, 
+            "purpose": body.purpose, 
+            "status": "auto_approved",
+            "approval_method": "auto",
+            "ai_reason": ai_result["reason"],
+            "timestamp": datetime.now(timezone.utc)
+        }
+        result = consent_log_collection.insert_one(consent_request)
+        
+        # Return the actual data if available
+        requested_data = user.get(body.data_type)
+        return {
+            "message": "Request auto-approved.", 
+            "status": "auto_approved", 
+            "request_id": str(result.inserted_id),
+            "ai_reason": ai_result["reason"],
+            "data": requested_data
+        }
 
 @app.post("/api/v1/org/policy", response_model=Organization, tags=["Organization (SME-Femi)"])
 async def update_org_policy(policy_body: OrgPolicyUpdate, org: Organization = Depends(get_current_org)):
@@ -301,6 +432,58 @@ async def update_org_policy(policy_body: OrgPolicyUpdate, org: Organization = De
 async def get_org_compliance_log(org: Organization = Depends(get_current_org)):
     logs = consent_log_collection.find({"org_id": validate_object_id(org.id)}).sort("timestamp", -1)
     return list(logs)
+
+@app.get("/api/v1/request-status/{request_id}", tags=["Organization (SME-Femi)"])
+async def check_request_status(request_id: str, org: Organization = Depends(get_current_org)):
+    """Check status of a data request and get data if approved"""
+    logger.info(f"🔍 Checking status for request {request_id} by org {org.org_name} (ID: {org.id})")
+    
+    try:
+        request_oid = validate_object_id(request_id)
+        logger.info(f"✅ Valid ObjectId: {request_oid}")
+    except Exception as e:
+        logger.error(f"❌ Invalid request_id format: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request_id format.")
+    
+    # First try to find by request ID only for debugging
+    request_doc = consent_log_collection.find_one({"_id": request_oid})
+    
+    if not request_doc:
+        logger.error(f"❌ Request {request_id} not found in database at all")
+        raise HTTPException(status_code=404, detail="Request not found.")
+    
+    logger.info(f"📋 Found request: org_id={request_doc.get('org_id')}, status={request_doc.get('status')}")
+    
+    # Check if request belongs to this organization
+    expected_org_id = validate_object_id(org.id)
+    actual_org_id = request_doc.get('org_id')
+    
+    if actual_org_id != expected_org_id:
+        logger.warning(f"🚫 Request belongs to different org. Expected: {expected_org_id}, Found: {actual_org_id}")
+        raise HTTPException(status_code=403, detail="Request belongs to different organization.")
+    
+    response = {
+        "request_id": request_id,
+        "status": request_doc["status"],
+        "user_id": request_doc["user_id"],
+        "data_type": request_doc["data_type"],
+        "purpose": request_doc["purpose"],
+        "timestamp": request_doc["timestamp"]
+    }
+    
+    # If approved, include the data
+    if request_doc["status"] in ["approved", "auto_approved"]:
+        user = users_collection.find_one({"username": request_doc["user_id"]})
+        if user:
+            response["data"] = user.get(request_doc["data_type"])
+            response["message"] = "Data access granted"
+            logger.info(f"✅ Returning data for approved request")
+    elif request_doc["status"] == "denied":
+        response["message"] = "Access denied by user"
+    else:
+        response["message"] = "Awaiting user approval"
+    
+    return response
 
 @app.post("/api/v1/org/login", response_model=Organization, tags=["Organization (SME-Femi)"])
 async def login_org(api_key: str = Form(...)):

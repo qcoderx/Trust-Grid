@@ -1,7 +1,15 @@
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import VerificationForm from '../VerificationForm';
 
 const ProfileHeader = () => {
   const { user } = useAuth();
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
+
+  const handleVerificationSuccess = () => {
+    setShowVerificationForm(false);
+    window.location.reload(); // Refresh to show updated status
+  };
   
   return (
     <div className="flex p-4 @container mb-8">
@@ -30,8 +38,34 @@ const ProfileHeader = () => {
               {user.company_category}
             </p>
           )}
+          {user?.verification_status !== 'verified' && (
+            <div className="mt-4 p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-lg">
+              <p className="text-yellow-400 text-sm font-medium mb-2">🔒 Verification Required</p>
+              <p className="text-gray-300 text-sm mb-3">
+                To access data requests and compliance features, verify your organization with:
+              </p>
+              <ul className="text-gray-300 text-sm space-y-1 mb-3">
+                <li>• Company registration certificate (CAC)</li>
+                <li>• Business registration number</li>
+                <li>• Company website and description</li>
+              </ul>
+              <button 
+                onClick={() => setShowVerificationForm(true)}
+                className="bg-primary hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Start Verification
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      
+      {showVerificationForm && (
+        <VerificationForm
+          onClose={() => setShowVerificationForm(false)}
+          onSuccess={handleVerificationSuccess}
+        />
+      )}
     </div>
   );
 };
