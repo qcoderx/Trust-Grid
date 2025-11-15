@@ -22,12 +22,11 @@ def generate_api_key(prefix: str = "tg_live", length: int = 16) -> str:
 
 def get_api_key_hash(api_key: str) -> str:
     """
-    Hashes the API key using passlib.
-    Truncates to 72 bytes to avoid bcrypt limitations.
+    Hashes the API key using SHA256 to avoid bcrypt length limitations.
     """
-    # Bcrypt has a 72-byte limit, truncate if necessary
-    truncated_key = api_key.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-    return pwd_context.hash(truncated_key)
+    # Use SHA256 instead of bcrypt for API keys to avoid 72-byte limit
+    salt = "trustgrid_api_salt_2024"
+    return hashlib.sha256((salt + api_key).encode()).hexdigest()
 
 def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     """
@@ -35,9 +34,9 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     Returns True if valid, False otherwise.
     """
     try:
-        # Truncate to match the hashing function
-        truncated_key = plain_key.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return pwd_context.verify(truncated_key, hashed_key)
+        # Use SHA256 verification to match get_api_key_hash
+        expected_hash = get_api_key_hash(plain_key)
+        return expected_hash == hashed_key
     except Exception:
         # Handle old hashes or invalid formats gracefully
         return False
