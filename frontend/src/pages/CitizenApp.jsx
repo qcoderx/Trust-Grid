@@ -7,6 +7,8 @@ const CitizenApp = () => {
   const [user, setUser] = useState(null);
   const [requests, setRequests] = useState([]);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleLogin = async (username, password) => {
     try {
@@ -31,8 +33,7 @@ const CitizenApp = () => {
       fetchRequests(userData._id || username);
     } catch (error) {
       console.error('Register error:', error);
-      setUser({ id: username, username });
-      fetchRequests(username);
+      throw error;
     }
   };
 
@@ -140,8 +141,15 @@ const CitizenApp = () => {
                   <p className="text-white/70 text-sm">Sign in to continue</p>
                 </div>
 
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-xs text-center">
+                    {error}
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <input
+                    id="username"
                     type="text"
                     defaultValue="ayo"
                     className="w-full px-4 py-3 bg-black/40 border border-white/30 rounded-xl text-white placeholder-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -149,6 +157,7 @@ const CitizenApp = () => {
                   />
 
                   <input
+                    id="password"
                     type="password"
                     defaultValue="password"
                     className="w-full px-4 py-3 bg-black/40 border border-white/30 rounded-xl text-white placeholder-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -158,10 +167,15 @@ const CitizenApp = () => {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleLogin('ayo', 'password')}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
+                    onClick={() => {
+                      const username = document.getElementById('username').value;
+                      const password = document.getElementById('password').value;
+                      handleLogin(username, password);
+                    }}
+                    disabled={loading}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold transition-colors text-sm disabled:opacity-50"
                   >
-                    Sign In
+                    {loading ? 'Signing In...' : 'Sign In'}
                   </motion.button>
                 </div>
               </div>

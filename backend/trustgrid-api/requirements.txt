@@ -4,8 +4,14 @@ pymongo>=4.6.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 python-dotenv>=1.0.0
+<<<<<<< HEAD
 passlib[bcrypt]>=1.7.4
 google-genai
+=======
+passlib
+bcrypt
+google-generativeai
+>>>>>>> a13335c1ff7bd5e88e8564a35b95894779beaa44
 grpcio==1.62.3
 grpcio-status==1.62.3
 dnspython

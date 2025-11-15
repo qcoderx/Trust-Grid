@@ -222,8 +222,9 @@ const DashboardPage = () => {
   };
 
   const LoginForm = () => {
-    const [username, setUsername] = useState('SME-Femi');
-    const [password, setPassword] = useState('password');
+    const [mode, setMode] = useState('login');
+    const [apiKey, setApiKey] = useState('');
+    const [orgName, setOrgName] = useState('');
     
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark py-12 px-4 sm:px-6 lg:px-8">
@@ -237,31 +238,74 @@ const DashboardPage = () => {
               </div>
             </Link>
             <h2 className="text-3xl font-extrabold text-black dark:text-white">
-              Sign in to your account
+              {mode === 'login' ? 'Sign in to your account' : 'Register your organization'}
             </h2>
           </div>
           <div className="bg-white/5 dark:bg-white/5 shadow rounded-xl border border-white/10 p-8">
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded text-red-800 dark:text-red-200 text-sm">
+                {error}
+              </div>
+            )}
             <div className="space-y-6">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
-                placeholder="Organization Username"
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
-                placeholder="Password"
-              />
-              <button
-                onClick={() => handleLogin(username, password)}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                Sign in
-              </button>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  onClick={() => setMode('login')}
+                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-l-md border ${
+                    mode === 'login'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-transparent text-black dark:text-white border-black/20 dark:border-white/20'
+                  }`}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => setMode('register')}
+                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-r-md border ${
+                    mode === 'register'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-transparent text-black dark:text-white border-black/20 dark:border-white/20'
+                  }`}
+                >
+                  Register
+                </button>
+              </div>
+
+              {mode === 'login' ? (
+                <>
+                  <input
+                    type="text"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
+                    placeholder="Enter your API key"
+                  />
+                  <button
+                    onClick={() => handleLogin(apiKey)}
+                    disabled={loading || !apiKey}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  >
+                    {loading ? 'Signing in...' : 'Sign in'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
+                    placeholder="Organization Name"
+                  />
+                  <button
+                    onClick={() => handleRegister(orgName)}
+                    disabled={loading || !orgName}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  >
+                    {loading ? 'Registering...' : 'Register'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -290,10 +334,10 @@ const DashboardPage = () => {
               </Link>
               <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 dark:bg-white/5 rounded-lg border border-white/10">
                 <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{user?.username?.charAt(0)?.toUpperCase()}</span>
+                  <span className="text-white text-sm font-bold">{user?.org_name?.charAt(0)?.toUpperCase()}</span>
                 </div>
                 <div>
-                  <p className="text-black dark:text-white text-sm font-medium">{user?.username}</p>
+                  <p className="text-black dark:text-white text-sm font-medium">{user?.org_name}</p>
                   <p className="text-black/60 dark:text-white/60 text-xs">
                     {isVerified ? '✓ Verified' : '⚠ Unverified'}
                   </p>
@@ -466,6 +510,8 @@ const DashboardPage = () => {
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         log.status === 'approved' || log.status === 'pending'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : log.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                           : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}>
                         {log.status}
