@@ -34,7 +34,6 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     Verifies a plain-text key against a stored hash.
     Returns True if valid, False otherwise.
     """
-<<<<<<< HEAD
     return hashlib.sha256(plain_key.encode()).hexdigest() == hashed_key
 
 def hash_password(password: str) -> str:
@@ -50,12 +49,3 @@ def verify_password(password: str, hashed_password: str) -> bool:
     Verify password against hash.
     """
     return hash_password(password) == hashed_password
-=======
-    try:
-        # Truncate the key the same way as during hashing
-        truncated_key = plain_key.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-        return pwd_context.verify(truncated_key, hashed_key)
-    except Exception:
-        # Catches errors like mismatch or invalid hash format
-        return False
->>>>>>> a13335c1ff7bd5e88e8564a35b95894779beaa44

@@ -90,10 +90,10 @@ const DocsContent = ({ onLoginClick }) => {
               To get started with TrustGrid API, you'll need to:
             </p>
             <ol className="text-gray-300 list-decimal list-inside space-y-2 mb-4">
-              <li>Register your organization with a secure password</li>
-              <li>Save your API key (shown only once during registration)</li>
-              <li>Login using either organization credentials or API key</li>
-              <li>Configure your tenant settings and integrate the SDK</li>
+              <li>Create an account on TrustGrid Developer Portal</li>
+              <li>Generate your API keys from the dashboard</li>
+              <li>Configure your tenant settings</li>
+              <li>Integrate the SDK into your application</li>
             </ol>
           </div>
         </div>
@@ -111,19 +111,13 @@ const DocsContent = ({ onLoginClick }) => {
 {`# Install the TGA SDK
 pip install tga
 
-# Register an organization with password
-response = requests.post("https://api.trustgrid.com/api/v1/org/register", {
-    "org_name": "MyOrg",
-    "password": "secure_password123"
-})
-api_key = response.json()["api_key"]
-
-# Initialize TrustGrid Client with API key
+# Initialize TrustGrid Client
 from tga import TrustGridClient
-client = TrustGridClient(api_key=api_key)
 
-# Or login with organization credentials
-org = client.login(org_name="MyOrg", password="secure_password123")
+client = TrustGridClient(api_key="your-api-key")
+
+# Register an organization
+org = client.register_organization("MyOrg")
 
 # Request data access
 response = client.request_data_access(
@@ -230,32 +224,15 @@ new_key = client.create_api_key("Production Key")`}
           <h3 className="text-2xl font-bold text-white mb-4">Authentication</h3>
           <div className="bg-white/5 p-6 rounded-xl border border-white/10">
             <p className="text-gray-300 mb-4">
-              TrustGrid supports two authentication methods:
+              TrustGrid uses API keys for authentication. Include your API key in the request header:
             </p>
-            
-            <div className="mb-6">
-              <h4 className="text-white font-semibold mb-2">1. Organization Login (Recommended for Web Apps)</h4>
-              <p className="text-gray-300 mb-2">Login with your organization name and password:</p>
-              <div className="bg-black p-4 rounded-lg mb-4">
-                <code className="text-green-400 text-sm">
-                  POST /api/v1/org/login<br/>
-                  {'{"org_name": "YourOrg", "password": "your_password"}'}
-                </code>
-              </div>
+            <div className="bg-black p-4 rounded-lg mb-4">
+              <code className="text-green-400 text-sm">
+                X-API-Key: YOUR_API_KEY
+              </code>
             </div>
-            
-            <div className="mb-4">
-              <h4 className="text-white font-semibold mb-2">2. API Key Authentication (For Server-to-Server)</h4>
-              <p className="text-gray-300 mb-2">Include your API key in the request header:</p>
-              <div className="bg-black p-4 rounded-lg mb-4">
-                <code className="text-green-400 text-sm">
-                  X-API-Key: YOUR_API_KEY
-                </code>
-              </div>
-            </div>
-            
             <p className="text-gray-300">
-              You can generate and manage your API keys from the developer dashboard after logging in.
+              You can generate and manage your API keys from the developer dashboard.
             </p>
           </div>
         </div>
@@ -363,15 +340,7 @@ new_key = client.create_api_key("Production Key")`}
                   <code className="text-white font-mono">/api/v1/org/register</code>
                   <span className="text-gray-400 text-sm">Register Organization</span>
                 </div>
-                <p className="text-gray-300 mb-4">Register a new organization with name and password, and get your first API key.</p>
-                <div className="bg-black rounded-xl p-4 mb-4">
-                  <pre className="text-green-400 text-sm overflow-x-auto">
-{`{
-  "org_name": "MyOrganization",
-  "password": "secure_password123"
-}`}
-                  </pre>
-                </div>
+                <p className="text-gray-300 mb-4">Register a new organization and get your first API key.</p>
               </div>
 
               <div className="bg-white/5 p-6 rounded-xl border border-white/10">
@@ -380,24 +349,7 @@ new_key = client.create_api_key("Production Key")`}
                   <code className="text-white font-mono">/api/v1/org/login</code>
                   <span className="text-gray-400 text-sm">Organization Login</span>
                 </div>
-                <p className="text-gray-300 mb-4">Login with your organization name and password to access organization features.</p>
-                <div className="bg-black rounded-xl p-4 mb-4">
-                  <pre className="text-green-400 text-sm overflow-x-auto">
-{`{
-  "org_name": "MyOrganization",
-  "password": "your_secure_password"
-}`}
-                  </pre>
-                </div>
-              </div>
-
-              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-mono">POST</span>
-                  <code className="text-white font-mono">/api/v1/org/login-api-key</code>
-                  <span className="text-gray-400 text-sm">Organization Login (API Key)</span>
-                </div>
-                <p className="text-gray-300 mb-4">Alternative login method using your API key for programmatic access.</p>
+                <p className="text-gray-300 mb-4">Login with your API key to access organization features.</p>
               </div>
 
               <div className="bg-white/5 p-6 rounded-xl border border-white/10">

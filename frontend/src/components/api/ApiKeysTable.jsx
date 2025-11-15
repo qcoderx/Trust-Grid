@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import apiService from '../../services/api';
+import apiClient from '../../api';
 
 const ApiKeysTable = forwardRef((props, ref) => {
   const [apiKeys, setApiKeys] = useState([]);
@@ -19,7 +19,7 @@ const ApiKeysTable = forwardRef((props, ref) => {
   const fetchApiKeys = async () => {
     try {
       setLoading(true);
-      const keys = await apiService.getApiKeys();
+      const keys = await apiClient.getApiKeys();
       setApiKeys(keys);
       setError(null);
     } catch (err) {
@@ -39,7 +39,7 @@ const ApiKeysTable = forwardRef((props, ref) => {
 
   const handleRevoke = async (id) => {
     try {
-      await apiService.revokeApiKey(id);
+      await apiClient.revokeApiKey(id);
       // Refresh the keys list
       await fetchApiKeys();
     } catch (err) {

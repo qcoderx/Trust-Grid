@@ -47,7 +47,6 @@ def validate_object_id(v):
 # --- NEW: Model for Org Registration (Input) ---
 class OrgCreate(BaseModel):
     org_name: str
-    password: str
 
 class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -65,7 +64,6 @@ class UserCreate(BaseModel):
 class Organization(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     org_name: str
-    password_hash: Optional[str] = None
     policy_text: Optional[str] = None
     # --- api_key REMOVED ---
     
@@ -136,7 +134,3 @@ class ApiKeyCreate(BaseModel):
 class ApiKeyResponse(BaseModel):
     key_details: ApiKey # Contains the ID, hash, etc.
     api_key: str       # The plain text key (shown once)
-
-class OrgLogin(BaseModel):
-    org_name: str
-    password: str

@@ -22,22 +22,18 @@ from app.models import (
     DataRequestBody, ConsentLog, ConsentResponseBody,
     ApiKey, ApiKeyCreate, ApiKeyResponse, # <-- Updated/New models
     PyObjectId, validate_object_id,
-    OrgCreate, OrgRegistrationResponse, OrgLogin # <-- New models for registration and login
+    OrgCreate, OrgRegistrationResponse # <-- New models for registration
 )
 from app.auth import get_current_org
 from app.ai_compliance import (
     check_policy_compliance,
-    verify_organization_identity,
-    upload_file_for_verification,
-    delete_uploaded_file
+    verify_organization_identity
 )
 # --- NEW SECURITY IMPORTS ---
 from app.security import (
     generate_api_key,
     get_api_key_hash,
-    verify_api_key, # Import verify_api_key (though auth.py uses it mainly)
-    hash_password,
-    verify_password
+    verify_api_key # Import verify_api_key (though auth.py uses it mainly)
 )
 from passlib.context import CryptContext
 from datetime import datetime, timezone
@@ -45,7 +41,7 @@ from bson import ObjectId
 import uvicorn
 import logging
 from typing import Literal, Annotated, List # <-- Add List
-import google.genai as genai
+import google.generativeai as genai
 import os
 import shutil
 # Removed secrets import as it's now in security.py
@@ -99,7 +95,6 @@ async def register_organization(org_create: OrgCreate):
     # --- Create the Organization Document ---
     new_org_data = {
         "org_name": org_create.org_name,
-        "password_hash": hash_password(org_create.password),
         "verification_status": "unverified", # Start as unverified
         # Initialize other fields required by the Organization model
         "policy_text": None,
@@ -144,7 +139,7 @@ async def create_user(user: UserCreate):
     existing_user = users_collection.find_one({"username": user.username})
     if existing_user: raise HTTPException(status_code=400, detail="Username already exists")
     # Hash user password on creation
-    user_doc = {"username": user.username, "password": hash_password(user.password)}
+    user_doc = {"username": user.username, "password": pwd_context.hash(user.password)}
     result = users_collection.insert_one(user_doc)
     created_user = users_collection.find_one({"_id": result.inserted_id})
     if not created_user: raise HTTPException(status_code=500, detail="Failed to retrieve created user.")
@@ -160,8 +155,8 @@ async def login_user(user: UserCreate):
     if not existing_user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    # Verify password
-    if not verify_password(user.password, existing_user["password"]):
+    # Verify password using bcrypt (consistent with registration)
+    if not pwd_context.verify(user.password, existing_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Return user details (excluding password)
@@ -220,7 +215,9 @@ async def submit_for_verification(
 
     try:
         # --- Upload file to Google AI for analysis ---
-        uploaded_file = upload_file_for_verification(file_path)
+        logger.info(f"Uploading {file_path} to Gemini for verification...")
+        uploaded_file = genai.upload_file(path=file_path, display_name=f"{org_name} CAC Cert")
+        logger.info(f"File uploaded successfully to Gemini: {uploaded_file.name}")
 
         # --- Call the AI Verifier ---
         logger.info(f"Submitting {org_name} details for AI verification...")
@@ -232,11 +229,16 @@ async def submit_for_verification(
     except Exception as e:
          # Broad exception catch during AI processing
          logger.error(f"Error during AI verification process: {e}")
-         ai_result = {"decision": "REJECTED", "reason": "AI verification service unavailable - manual review required"}
+         ai_result = {"decision": "REJECTED", "reason": f"Internal error during AI verification: {e}"}
     finally:
         # --- Clean up the uploaded file from Google AI ---
         if uploaded_file:
-            delete_uploaded_file(uploaded_file)
+            try:
+                genai.delete_file(uploaded_file.name)
+                logger.info(f"Cleaned up Gemini file: {uploaded_file.name}")
+            except Exception as e:
+                # Log error but don't fail the request if cleanup fails
+                logger.error(f"Failed to delete Gemini file {uploaded_file.name}: {e}")
 
     # --- Update Org in DB based on AI decision ---
     update_data = {
@@ -300,43 +302,8 @@ async def get_org_compliance_log(org: Organization = Depends(get_current_org)):
     logs = consent_log_collection.find({"org_id": validate_object_id(org.id)}).sort("timestamp", -1)
     return list(logs)
 
-@app.post("/api/v1/org/login", tags=["Organization (SME-Femi)"])
-async def login_org(login_data: OrgLogin):
-    """
-    Login endpoint for organizations using org_name and password.
-    Returns organization details AND generates/returns an API key for the session.
-    """
-    # Find organization by name
-    org_data = organizations_collection.find_one({"org_name": login_data.org_name})
-    if not org_data:
-        raise HTTPException(status_code=401, detail="Invalid organization name or password")
-
-    # Verify password
-    if not verify_password(login_data.password, org_data["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid organization name or password")
-
-    # Generate a new API key for this login session
-    new_api_key = generate_api_key()
-    api_key_hash = get_api_key_hash(new_api_key)
-
-    # Create a new API key document for this session
-    key_doc = {
-        "name": f"Login Session - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}",
-        "key_hash": api_key_hash,
-        "status": "active",
-        "created_date": datetime.now(timezone.utc),
-        "org_id": org_data["_id"],
-    }
-    api_keys_collection.insert_one(key_doc)
-
-    return {
-        **Organization(**org_data).dict(),
-        "api_key": new_api_key,  # Return the plain text key
-        "session_key": True  # Flag to indicate this is a session key
-    }
-
-@app.post("/api/v1/org/login-api-key", response_model=Organization, tags=["Organization (SME-Femi)"])
-async def login_org_api_key(api_key: str = Form(...)):
+@app.post("/api/v1/org/login", response_model=Organization, tags=["Organization (SME-Femi)"])
+async def login_org(api_key: str = Form(...)):
     """
     Login endpoint for organizations using their API key.
     Returns organization details if the API key is valid.

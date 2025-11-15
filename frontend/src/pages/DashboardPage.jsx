@@ -1,91 +1,65 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import apiService from '../services/api';
+import { Link } from 'react-router-dom';
 
 const DashboardPage = () => {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('policy');
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [showCreateApiKeyModal, setShowCreateApiKeyModal] = useState(false);
-  const [showMessageModal, setShowMessageModal] = useState(false);
-  const [modalMessage, setModalMessage] = useState({ title: '', message: '', type: 'info' });
   const [newApiKey, setNewApiKey] = useState('');
-  const [newApiKeyName, setNewApiKeyName] = useState('');
   const [policy, setPolicy] = useState('');
   const [apiKeys, setApiKeys] = useState([]);
   const [complianceLogs, setComplianceLogs] = useState([]);
   const [isVerified, setIsVerified] = useState(false);
 
-  // Check for existing session on component mount
-  useEffect(() => {
-    const storedApiKey = localStorage.getItem('trustgrid_api_key');
-    const storedUser = localStorage.getItem('trustgrid_user');
-    
-    if (storedApiKey && storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        apiService.setApiKey(storedApiKey);
-        // Try to load dashboard data to verify the session is still valid
-        loadDashboardData(userData.id).catch(() => {
-          // If loading fails, clear the session
-          console.log('Session expired, clearing stored data');
-          handleLogout();
-        });
-      } catch (error) {
-        console.error('Error restoring session:', error);
-        localStorage.removeItem('trustgrid_api_key');
-        localStorage.removeItem('trustgrid_user');
-      }
-    }
-  }, []);
-
   const handleLogin = async (username, password) => {
     try {
-      console.log('Attempting login for:', username);
-      const userData = await apiService.loginOrganization({
-        org_name: username,
-        password: password
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
       });
-      console.log('Login successful:', userData);
-      const user = { id: userData._id || username, username: userData.org_name || username };
-      setUser(user);
-      setIsVerified(userData.verification_status === 'verified');
-      localStorage.setItem('trustgrid_user', JSON.stringify(user));
-      loadDashboardData(userData._id || username);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({ id: userData._id || username, username: userData.username || username });
+        setIsVerified(userData.is_verified || false);
+        loadDashboardData(userData._id || username);
+      } else if (response.status === 404 || response.status === 401) {
+        await handleRegister(username, password);
+      }
     } catch (error) {
       console.error('Login error:', error);
-      try {
-        console.log('Login failed, attempting registration for:', username);
-        await handleRegister(username, password);
-      } catch (registerError) {
-        console.error('Registration also failed:', registerError);
-        setUser({ id: username, username });
-      }
+      setUser({ id: username, username });
     }
   };
 
   const handleRegister = async (username, password) => {
     try {
-      console.log('Attempting registration for:', username);
-      const response = await apiService.registerOrganization({
-        org_name: username,
-        password: password
-      });
-      console.log('Registration successful:', response);
+      const formData = new URLSearchParams();
+      formData.append('username', username);
+      formData.append('password', password);
 
-      // Registration returns { organization, api_key }
-      const { organization, api_key } = response;
-      const user = { id: organization._id || username, username: organization.org_name || username };
-      setUser(user);
-      setIsVerified(false);
-      localStorage.setItem('trustgrid_user', JSON.stringify(user));
-      if (api_key) {
-        apiService.setApiKey(api_key);
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser({ id: userData._id || username, username: userData.username || username });
+        setIsVerified(false);
+        loadDashboardData(userData._id || username);
       }
-      loadDashboardData(organization._id || username);
     } catch (error) {
       console.error('Register error:', error);
       setUser({ id: username, username });
@@ -94,131 +68,134 @@ const DashboardPage = () => {
 
   const loadDashboardData = async (orgId) => {
     try {
-      const [policyData, keysData, logsData] = await Promise.all([
-        apiService.getOrganizationDetails().then(org => org.policy_text || '').catch(err => {
-          if (err.message.includes('401')) {
-            handleLogout();
-          }
-          return '';
-        }),
-        apiService.getApiKeys().catch(err => {
-          if (err.message.includes('401')) {
-            handleLogout();
-          }
-          return [];
-        }),
-        apiService.getComplianceLogs().catch(err => {
-          if (err.message.includes('401')) {
-            handleLogout();
-          }
-          return [];
-        })
+      const [policyRes, keysRes, logsRes] = await Promise.all([
+        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/policy`),
+        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/api-keys`),
+        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/compliance-log`)
       ]);
 
-      setPolicy(policyData);
-      setApiKeys(keysData);
-      setComplianceLogs(logsData);
-      console.log('Loaded compliance logs:', logsData);
+      if (policyRes.ok) {
+        const policyData = await policyRes.json();
+        setPolicy(policyData.policy || '');
+      }
+
+      if (keysRes.ok) {
+        const keysData = await keysRes.json();
+        setApiKeys(keysData || []);
+      }
+
+      if (logsRes.ok) {
+        const logsData = await logsRes.json();
+        setComplianceLogs(logsData || []);
+      }
     } catch (error) {
       console.error('Load dashboard data error:', error);
-      if (error.message.includes('401')) {
-        handleLogout();
-      }
     }
-  };
-
-  const showModal = (title, message, type = 'info') => {
-    setModalMessage({ title, message, type });
-    setShowMessageModal(true);
   };
 
   const savePolicy = async () => {
     try {
-      await apiService.updateOrgPolicy({ policy_text: policy });
-      showModal('Success', 'Policy saved successfully!', 'success');
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/policy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+        },
+        body: JSON.stringify({ policy_text: policy })
+      });
+      
+      if (response.ok) {
+        alert('Policy saved successfully!');
+      } else {
+        alert('Policy saved locally!');
+      }
     } catch (error) {
       console.error('Save policy error:', error);
-      showModal('Info', 'Policy saved locally!', 'info');
+      alert('Policy saved locally!');
     }
   };
 
   const createApiKey = async (keyName) => {
     try {
-      const result = await apiService.createApiKey(keyName);
-      setApiKeys(prev => [...prev, result.key_details]);
-      setNewApiKey(result.api_key);
-      setShowApiKeyModal(true);
-      loadDashboardData(user.id);
+      const response = await fetch(`https://trust-grid.onrender.com/api/v1/org/api-keys`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+        },
+        body: JSON.stringify({ name: keyName })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setApiKeys(prev => [...prev, result.key_details]);
+        setNewApiKey(result.api_key);
+        setShowApiKeyModal(true);
+        loadDashboardData(user.id);
+      }
     } catch (error) {
       console.error('Create API key error:', error);
-      if (error.message.includes('401')) {
-        handleLogout();
-      }
     }
   };
 
   const revokeApiKey = async (keyId) => {
     try {
-      await apiService.revokeApiKey(keyId);
-      setApiKeys(prev => prev.map(key =>
-        key._id === keyId ? { ...key, status: 'revoked' } : key
-      ));
-      loadDashboardData(user.id);
+      const response = await fetch(`https://trust-grid.onrender.com/api/v1/org/api-keys/${keyId}/revoke`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+        }
+      });
+      
+      if (response.ok) {
+        setApiKeys(prev => prev.map(key => 
+          key._id === keyId ? { ...key, status: 'revoked' } : key
+        ));
+        loadDashboardData(user.id);
+      }
     } catch (error) {
       console.error('Revoke API key error:', error);
-      if (error.message.includes('401')) {
-        handleLogout();
-      }
     }
   };
 
   const submitVerification = async (formData) => {
     try {
-      await apiService.submitVerification(formData);
-      setShowVerificationModal(false);
-      showModal('Success', 'Verification submitted successfully! You will be notified once reviewed.', 'success');
-      loadDashboardData(user.id);
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/submit-for-verification', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+        },
+        body: formData
+      });
+      
+      if (response.ok) {
+        setShowVerificationModal(false);
+        alert('Verification submitted successfully! You will be notified once reviewed.');
+        loadDashboardData(user.id);
+      }
     } catch (error) {
       console.error('Submit verification error:', error);
-      setShowVerificationModal(false);
-      
-      if (error.message.includes('already verified')) {
-        showModal('Already Verified', 'Your organization is already verified. No further action needed.', 'info');
-        setIsVerified(true);
-      } else if (error.message.includes('upload_file')) {
-        showModal('Service Unavailable', 'Verification service is temporarily unavailable. Please try again later.', 'error');
-      } else {
-        showModal('Verification Failed', 'Failed to submit verification. Please check your information and try again.', 'error');
-      }
     }
   };
 
   const submitDataRequest = async (userId, dataType, purpose) => {
     try {
-      const result = await apiService.requestDataAccess({ user_id: userId, data_type: dataType, purpose });
-      console.log('Data request result:', result);
-      showModal('Success', `Data request submitted successfully! Request ID: ${result.request_id}. The citizen will receive a notification to approve/deny this request.`, 'success');
-      // Refresh compliance logs to show the new request
-      loadDashboardData(user.id);
+      const response = await fetch('https://trust-grid.onrender.com/api/v1/request-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+        },
+        body: JSON.stringify({ user_id: userId, data_type: dataType, purpose })
+      });
+      
+      if (response.ok) {
+        alert('Data request submitted successfully!');
+        loadDashboardData(user.id);
+      }
     } catch (error) {
       console.error('Submit data request error:', error);
-      if (error.message.includes('COMPLIANCE VIOLATION')) {
-        showModal('Compliance Violation', error.message.replace('API Error: 403 Forbidden - ', ''), 'error');
-      } else if (error.message.includes('not verified')) {
-        showModal('Verification Required', 'Your organization must be verified before requesting user data.', 'error');
-      } else if (error.message.includes('not found')) {
-        showModal('User Not Found', 'The specified user ID was not found. Please check the username and try again.', 'error');
-      } else {
-        showModal('Request Failed', 'Failed to submit data request. Please check your inputs and try again.', 'error');
-      }
     }
-  };
-
-  const handleLogout = () => {
-    apiService.clearApiKey();
-    localStorage.removeItem('trustgrid_user');
-    setUser(null);
-    navigate('/');
   };
 
   const LoginForm = () => {
@@ -328,8 +305,7 @@ const DashboardPage = () => {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <Link to="/citizen-app" className="text-black/70 dark:text-white/70 hover:text-primary flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <Link to="/citizen-app" className="text-black/70 dark:text-white/70 hover:text-primary">
                 Citizen App
               </Link>
               <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 dark:bg-white/5 rounded-lg border border-white/10">
@@ -343,12 +319,6 @@ const DashboardPage = () => {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1.5 text-sm text-black/70 dark:text-white/70 hover:text-red-500 border border-black/20 dark:border-white/20 rounded-md hover:border-red-500"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>
@@ -449,7 +419,10 @@ const DashboardPage = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-black dark:text-white">API Keys</h3>
                 <button
-                  onClick={() => setShowCreateApiKeyModal(true)}
+                  onClick={() => {
+                    const keyName = prompt('Enter API key name:');
+                    if (keyName) createApiKey(keyName);
+                  }}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-green-600"
                 >
                   Create New Key
@@ -500,7 +473,7 @@ const DashboardPage = () => {
               <h3 className="text-lg font-medium text-black dark:text-white mb-4">Compliance Logs</h3>
               <div className="space-y-3">
                 {complianceLogs.map((log, index) => (
-                  <div key={log._id || index} className="p-4 border border-black/20 dark:border-white/20 rounded-md">
+                  <div key={index} className="p-4 border border-black/20 dark:border-white/20 rounded-md">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium text-black dark:text-white">User: {log.user_id}</p>
@@ -508,7 +481,7 @@ const DashboardPage = () => {
                         <p className="text-sm text-black/60 dark:text-white/60">Purpose: {log.purpose}</p>
                       </div>
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        log.status === 'approved' || log.status === 'pending'
+                        log.status === 'approved' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           : log.status === 'pending'
                           ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
@@ -518,16 +491,12 @@ const DashboardPage = () => {
                       </span>
                     </div>
                     <p className="text-xs text-black/50 dark:text-white/50 mt-2">
-                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'No timestamp'}
+                      {new Date(log.timestamp).toLocaleString()}
                     </p>
                   </div>
                 ))}
                 {complianceLogs.length === 0 && (
-                  <div className="text-center py-8">
-                    <span className="text-black/30 dark:text-white/30 text-3xl mb-2 block">📈</span>
-                    <p className="text-black/60 dark:text-white/60 mb-1">No compliance logs yet</p>
-                    <p className="text-black/40 dark:text-white/40 text-sm">Submit a data request to see logs here</p>
-                  </div>
+                  <p className="text-black/60 dark:text-white/60 text-center py-8">No compliance logs yet</p>
                 )}
               </div>
             </div>
@@ -538,14 +507,12 @@ const DashboardPage = () => {
               <h3 className="text-lg font-medium text-black dark:text-white mb-4">Request User Data</h3>
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
                 <div className="flex items-start gap-3">
-                  <span className="text-blue-500 text-xl">🤖</span>
+                  <span className="text-blue-500 text-xl">ℹ️</span>
                   <div>
                     <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-1">AI-Powered Compliance Check</h4>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                      All data requests are automatically verified against your privacy policy and business category using our AI compliance engine.
-                    </p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      📱 Citizens will receive real-time notifications in the <strong>Citizen App</strong> to approve/deny requests.
+                      All data requests are automatically verified against your privacy policy using our AI compliance engine. 
+                      Citizens will receive real-time consent requests on their mobile devices.
                     </p>
                   </div>
                 </div>
@@ -553,16 +520,11 @@ const DashboardPage = () => {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
-                const userId = formData.get('userId');
-                const dataType = formData.get('dataType');
-                const purpose = formData.get('purpose');
-                
-                if (!userId || !dataType || !purpose) {
-                  showModal('Missing Information', 'Please fill in all required fields.', 'error');
-                  return;
-                }
-                
-                submitDataRequest(userId, dataType, purpose);
+                submitDataRequest(
+                  formData.get('userId'),
+                  formData.get('dataType'),
+                  formData.get('purpose')
+                );
                 e.target.reset();
               }} className="space-y-4">
                 <div>
@@ -570,13 +532,10 @@ const DashboardPage = () => {
                   <input
                     name="userId"
                     type="text"
-                    placeholder="e.g., ayo (must be registered in Citizen App)"
+                    placeholder="e.g., ayo"
                     required
                     className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
                   />
-                  <p className="text-xs text-black/50 dark:text-white/50 mt-1">
-                    💡 The user must be registered in the Citizen App to receive requests
-                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-black dark:text-white mb-1">Data Type</label>
@@ -617,32 +576,6 @@ const DashboardPage = () => {
                   Submit Data Request
                 </button>
               </form>
-              
-              <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">🔗 Test Integration</h4>
-                <p className="text-sm text-green-700 dark:text-green-300 mb-3">
-                  To test the full flow: Submit a request above, then check the <strong>Citizen App</strong> to see the real-time notification.
-                </p>
-                <div className="flex gap-2">
-                  <a 
-                    href="/citizen-app" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    Open Citizen App ↗
-                  </a>
-                  <button
-                    onClick={() => {
-                      const testUserId = 'ayo';
-                      submitDataRequest(testUserId, 'email', 'account setup');
-                    }}
-                    className="px-3 py-1.5 bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 text-sm rounded-md hover:bg-green-200 dark:hover:bg-green-700 transition-colors"
-                  >
-                    Quick Test (ayo)
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -700,50 +633,6 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* Create API Key Modal */}
-      {showCreateApiKeyModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold text-black dark:text-white mb-4">Create New API Key</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              if (newApiKeyName.trim()) {
-                createApiKey(newApiKeyName.trim());
-                setShowCreateApiKeyModal(false);
-                setNewApiKeyName('');
-              }
-            }} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-black dark:text-white mb-1">API Key Name</label>
-                <input
-                  type="text"
-                  value={newApiKeyName}
-                  onChange={(e) => setNewApiKeyName(e.target.value)}
-                  placeholder="e.g., Production Key, Development Key"
-                  required
-                  className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md bg-transparent text-black dark:text-white focus:outline-none focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button type="submit" className="flex-1 bg-primary text-white py-2 rounded-md hover:bg-green-600">
-                  Create Key
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateApiKeyModal(false);
-                    setNewApiKeyName('');
-                  }}
-                  className="flex-1 border border-black/20 dark:border-white/20 text-black dark:text-white py-2 rounded-md hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* API Key Display Modal */}
       {showApiKeyModal && newApiKey && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -758,16 +647,16 @@ const DashboardPage = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <button
+              <button 
                 onClick={() => {
                   navigator.clipboard.writeText(newApiKey);
-                  showModal('Copied', 'API key copied to clipboard!', 'success');
+                  alert('API key copied to clipboard!');
                 }}
                 className="flex-1 bg-primary text-white py-2 rounded-md hover:bg-green-600"
               >
                 Copy Key
               </button>
-              <button
+              <button 
                 onClick={() => {
                   setShowApiKeyModal(false);
                   setNewApiKey('');
@@ -777,32 +666,6 @@ const DashboardPage = () => {
                 Close
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Message Modal */}
-      {showMessageModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
-            <div className="flex items-center gap-3 mb-4">
-              <span className={`text-2xl ${
-                modalMessage.type === 'success' ? 'text-green-500' :
-                modalMessage.type === 'error' ? 'text-red-500' :
-                'text-blue-500'
-              }`}>
-                {modalMessage.type === 'success' ? '✓' :
-                 modalMessage.type === 'error' ? '✗' : 'ℹ'}
-              </span>
-              <h3 className="text-lg font-bold text-black dark:text-white">{modalMessage.title}</h3>
-            </div>
-            <p className="text-black dark:text-white mb-6">{modalMessage.message}</p>
-            <button
-              onClick={() => setShowMessageModal(false)}
-              className="w-full bg-primary text-white py-2 rounded-md hover:bg-green-600"
-            >
-              OK
-            </button>
           </div>
         </div>
       )}

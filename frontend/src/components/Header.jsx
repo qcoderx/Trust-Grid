@@ -142,22 +142,19 @@ const Header = () => {
                 <span className="material-symbols-outlined text-2xl">person</span>
               </Link>
               <button
-                onClick={() => {
-                  logout();
-                  window.location.href = '/';
-                }}
+                onClick={logout}
                 className="text-sm text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
               >
                 Logout
               </button>
             </div>
           ) : (
-            <Link
-              to="/org-dashboard"
+            <button
+              onClick={() => setShowLoginModal(true)}
               className="px-4 py-2 bg-primary hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
             >
               Login
-            </Link>
+            </button>
           )}
         </div>
       </header>

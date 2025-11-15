@@ -4,7 +4,7 @@ import ApiKeysSection from '../components/api/ApiKeysSection';
 import ApiKeyModal from '../components/api/ApiKeyModal';
 import Header from '../components/Header';
 import { useAuth } from '../context/AuthContext';
-import apiService from '../services/api';
+import apiClient from '../api';
 
 const ProfilePage = () => {
   const [showModal, setShowModal] = useState(false);
@@ -39,7 +39,7 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiService.createApiKey({ name });
+      const response = await apiClient.createApiKey(name);
       setNewApiKey(response.api_key);
       setShowModal(true);
     } catch (err) {
