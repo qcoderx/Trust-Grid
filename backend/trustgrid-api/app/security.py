@@ -32,3 +32,17 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     Returns True if valid, False otherwise.
     """
     return hashlib.sha256(plain_key.encode()).hexdigest() == hashed_key
+
+def hash_password(password: str) -> str:
+    """
+    Hash password using SHA256 with salt to avoid bcrypt issues.
+    """
+    # Use a simple salt + hash approach
+    salt = "trustgrid_salt_2024"  # In production, use random salts per password
+    return hashlib.sha256((salt + password).encode()).hexdigest()
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    """
+    Verify password against hash.
+    """
+    return hash_password(password) == hashed_password

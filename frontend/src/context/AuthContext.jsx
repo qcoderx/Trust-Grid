@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../api';
+import apiService from '../services/api';
 
 const AuthContext = createContext();
 
@@ -21,9 +21,9 @@ export const AuthProvider = ({ children }) => {
     console.log('AuthContext: Checking stored API key:', !!storedApiKey);
     
     if (storedApiKey) {
-      apiClient.setApiKey(storedApiKey);
+      apiService.setApiKey(storedApiKey);
       // Verify the API key by fetching org details
-      apiClient.getOrganizationDetails()
+      apiService.getOrganizationDetails()
         .then(org => {
           console.log('AuthContext: Successfully verified stored API key');
           setUser(org);
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
           console.error('AuthContext: Failed to verify stored API key:', error);
           // Invalid API key, remove it
           localStorage.removeItem('trustgrid_api_key');
-          apiClient.setApiKey(null);
+          apiService.setApiKey(null);
         })
         .finally(() => {
           setLoading(false);
@@ -43,28 +43,32 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = async (apiKey) => {
+  const login = async (loginData) => {
     try {
-      console.log('AuthContext: Attempting login with API key');
-      const org = await apiClient.loginOrganization(apiKey);
+      console.log('AuthContext: Attempting login');
+      const org = await apiService.loginOrganization(loginData);
       console.log('AuthContext: Login successful');
-      apiClient.setApiKey(apiKey);
-      localStorage.setItem('trustgrid_api_key', apiKey);
+
+      // Store the API key from the response
+      if (org.api_key) {
+        localStorage.setItem('trustgrid_api_key', org.api_key);
+      }
+
       setUser(org);
       return org;
     } catch (error) {
       console.error('AuthContext: Login failed:', error);
-      throw new Error('Invalid API key');
+      throw error;
     }
   };
 
-  const register = async (orgName) => {
+  const register = async (registrationData) => {
     try {
-      console.log('AuthContext: Attempting registration for:', orgName);
-      const response = await apiClient.registerOrganization(orgName);
+      console.log('AuthContext: Attempting registration for:', registrationData.org_name);
+      const response = await apiService.registerOrganization(registrationData);
       const { organization, api_key } = response;
       console.log('AuthContext: Registration successful');
-      apiClient.setApiKey(api_key);
+      apiService.setApiKey(api_key);
       localStorage.setItem('trustgrid_api_key', api_key);
       setUser(organization);
       return { organization, api_key };
@@ -76,7 +80,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('trustgrid_api_key');
-    apiClient.setApiKey(null);
+    apiService.setApiKey(null);
     setUser(null);
   };
 

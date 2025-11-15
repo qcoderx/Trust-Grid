@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import apiService from '../services/api';
 
 const CitizenApp = () => {
   const [user, setUser] = useState(null);
@@ -9,49 +10,25 @@ const CitizenApp = () => {
 
   const handleLogin = async (username, password) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        fetchRequests(userData._id || username);
-      } else if (response.status === 404 || response.status === 401) {
+      const userData = await apiService.loginCitizen({ username, password });
+      setUser({ id: userData._id || username, username: userData.username || username });
+      fetchRequests(userData._id || username);
+    } catch (error) {
+      console.error('Login error:', error);
+      try {
         await handleRegister(username, password);
-      } else {
+      } catch (registerError) {
         setUser({ id: username, username });
         fetchRequests(username);
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setUser({ id: username, username });
-      fetchRequests(username);
     }
   };
 
   const handleRegister = async (username, password) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        fetchRequests(userData._id || username);
-      } else {
-        setUser({ id: username, username });
-        fetchRequests(username);
-      }
+      const userData = await apiService.registerCitizen({ username, password });
+      setUser({ id: userData._id || username, username: userData.username || username });
+      fetchRequests(userData._id || username);
     } catch (error) {
       console.error('Register error:', error);
       setUser({ id: username, username });
@@ -61,104 +38,33 @@ const CitizenApp = () => {
 
   const fetchRequests = async (userId) => {
     try {
-      const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${userId}/log`);
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data);
-      }
+      const data = await apiService.getCitizenLog(userId);
+      setRequests(data || []);
     } catch (error) {
       console.error('Fetch requests error:', error);
-      setRequests([
-        {
-          _id: '1',
-          org_id: 'SME-Femi',
-          user_id: userId,
-          data_type: 'email',
-          purpose: 'newsletter',
-          status: 'approved',
-          timestamp: '2024-01-15T10:30:00Z'
-        }
-      ]);
+      setRequests([]);
     }
   };
 
   const simulateNewRequest = async () => {
-    try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/request-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'sk_test_demo_key_for_simulation'
-        },
-        body: JSON.stringify({
-          user_id: user?.id || 'ayo',
-          data_type: 'bvn',
-          purpose: 'KYC verification'
-        })
-      });
-      
-      if (response.ok) {
-        console.log('Data request submitted successfully');
-      } else {
-        const newRequest = {
-          _id: `req_${Date.now()}`,
-          org_id: 'SME-Femi',
-          user_id: user?.id || 'ayo',
-          data_type: 'bvn',
-          purpose: 'KYC verification',
-          status: 'pending',
-          timestamp: new Date().toISOString(),
-        };
-        
-        setRequests(prev => [...prev, newRequest]);
-        setPendingRequest(newRequest);
-      }
-    } catch (error) {
-      console.error('Simulate request error:', error);
-      const newRequest = {
-        _id: `req_${Date.now()}`,
-        org_id: 'SME-Femi',
-        user_id: user?.id || 'ayo',
-        data_type: 'bvn',
-        purpose: 'KYC verification',
-        status: 'pending',
-        timestamp: new Date().toISOString(),
-      };
-      
-      setRequests(prev => [...prev, newRequest]);
-      setPendingRequest(newRequest);
-    }
+    console.log('Demo button clicked - this simulates an organization requesting your data');
+    // This is just a demo button - in real usage, organizations would trigger requests from their dashboard
+    alert('Demo: In a real scenario, organizations would request your data from their dashboard, and you would receive notifications here.');
   };
 
   const handleConsentResponse = async (requestId, response) => {
     try {
-      const apiResponse = await fetch('https://trust-grid.onrender.com/api/v1/citizen/respond', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, decision: response })
-      });
-      
-      if (apiResponse.ok) {
-        setRequests(prev => prev.map(req => 
-          req._id === requestId 
-            ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
-            : req
-        ));
-        setPendingRequest(null);
-      } else {
-        setRequests(prev => prev.map(req => 
-          req._id === requestId 
-            ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
-            : req
-        ));
-        setPendingRequest(null);
-      }
+      await apiService.respondToRequest({ request_id: requestId, decision: response });
+      setRequests(prev => prev.map(req =>
+        req._id === requestId
+          ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
+          : req
+      ));
+      setPendingRequest(null);
     } catch (error) {
       console.error('Consent response error:', error);
-      setRequests(prev => prev.map(req => 
-        req._id === requestId 
+      setRequests(prev => prev.map(req =>
+        req._id === requestId
           ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
           : req
       ));
@@ -168,29 +74,30 @@ const CitizenApp = () => {
 
   useEffect(() => {
     if (!user) return;
-    
+
+    // Initial fetch
+    fetchRequests(user.id);
+
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${user.id}/requests`);
-        if (response.ok) {
-          const pendingRequests = await response.json();
-          const pending = pendingRequests.find(req => req.status === 'pending');
-          if (pending && !pendingRequest) {
-            setPendingRequest(pending);
-            fetchRequests(user.id);
-          }
-        }
-      } catch (error) {
-        console.error('Poll requests error:', error);
-        const pending = requests.find(req => req.status === 'pending');
-        if (pending && !pendingRequest) {
+        // Check for pending requests
+        const pendingRequests = await apiService.getCitizenRequests(user.id);
+        const pending = pendingRequests.find(req => req.status === 'pending');
+        
+        if (pending && (!pendingRequest || pendingRequest._id !== pending._id)) {
+          console.log('New pending request found:', pending);
           setPendingRequest(pending);
         }
+        
+        // Also refresh the full log to show any updates
+        fetchRequests(user.id);
+      } catch (error) {
+        console.error('Poll requests error:', error);
       }
-    }, 3000);
+    }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(interval);
-  }, [user, pendingRequest]);
+  }, [user, pendingRequest?._id]);
 
   const LoginPage = () => (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 sm:p-8">
@@ -336,10 +243,10 @@ const CitizenApp = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={simulateNewRequest}
+                  onClick={() => fetchRequests(user.id)}
                   className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                 >
-                  Demo
+                  Refresh
                 </motion.button>
               </div>
             </div>
@@ -351,27 +258,35 @@ const CitizenApp = () => {
               </div>
 
               <div className="space-y-3 pb-4">
-                {requests.filter(req => req.status !== 'pending').map((request) => (
-                  <div key={request._id} className="bg-white/10 border border-white/20 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-white text-sm truncate">{request.org_id}</span>
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
-                        request.status === 'approved' 
-                          ? 'bg-green-500/30 text-green-200 border border-green-500/50'
-                          : 'bg-red-500/30 text-red-200 border border-red-500/50'
-                      }`}>
-                        {request.status}
-                      </span>
-                    </div>
-                    <div className="space-y-1 mb-2">
-                      <p className="text-white/80 text-xs"><span className="font-medium">Data:</span> {request.data_type}</p>
-                      <p className="text-white/80 text-xs"><span className="font-medium">Purpose:</span> {request.purpose}</p>
-                    </div>
-                    <p className="text-white/50 text-xs">
-                      {new Date(request.timestamp).toLocaleDateString()}
-                    </p>
+                {requests.filter(req => req.status !== 'pending').length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                    <span className="text-white/40 text-2xl mb-2 block">📋</span>
+                    <p className="text-white/60 text-sm mb-1">No data requests yet</p>
+                    <p className="text-white/40 text-xs">Organizations will appear here when they request your data</p>
                   </div>
-                ))}
+                ) : (
+                  requests.filter(req => req.status !== 'pending').map((request) => (
+                    <div key={request._id} className="bg-white/10 border border-white/20 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-white text-sm truncate">{request.org_id}</span>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0 ml-2 ${
+                          request.status === 'approved' 
+                            ? 'bg-green-500/30 text-green-200 border border-green-500/50'
+                            : 'bg-red-500/30 text-red-200 border border-red-500/50'
+                        }`}>
+                          {request.status}
+                        </span>
+                      </div>
+                      <div className="space-y-1 mb-2">
+                        <p className="text-white/80 text-xs"><span className="font-medium">Data:</span> {request.data_type}</p>
+                        <p className="text-white/80 text-xs"><span className="font-medium">Purpose:</span> {request.purpose}</p>
+                      </div>
+                      <p className="text-white/50 text-xs">
+                        {new Date(request.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

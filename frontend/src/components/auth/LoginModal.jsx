@@ -4,8 +4,10 @@ import ApiKeyDisplayModal from './ApiKeyDisplayModal';
 
 const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [loginMethod, setLoginMethod] = useState('credentials'); // 'credentials' or 'apikey'
   const [apiKey, setApiKey] = useState('');
   const [orgName, setOrgName] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -19,9 +21,13 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
 
     try {
       if (mode === 'login') {
-        await onLogin(apiKey);
+        if (loginMethod === 'credentials') {
+          await onLogin({ org_name: orgName, password });
+        } else {
+          await onLogin({ api_key: apiKey });
+        }
       } else {
-        const result = await onRegister(orgName);
+        const result = await onRegister({ org_name: orgName, password });
         // Show the API key modal after registration
         if (result.api_key) {
           setRegistrationResult(result);
@@ -42,6 +48,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
   const resetForm = () => {
     setApiKey('');
     setOrgName('');
+    setPassword('');
     setError('');
   };
 
@@ -101,37 +108,111 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'login' ? (
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
-                API Key
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
-                required
-              />
-              <p className="text-white/60 text-xs mt-1">
-                Enter the API key you received during registration
-              </p>
+              {/* Login Method Toggle */}
+              <div className="flex mb-4 bg-white/5 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('credentials')}
+                  className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
+                    loginMethod === 'credentials'
+                      ? 'bg-primary text-white'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  Org + Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('apikey')}
+                  className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
+                    loginMethod === 'apikey'
+                      ? 'bg-primary text-white'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  API Key
+                </button>
+              </div>
+
+              {loginMethod === 'credentials' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      value={orgName}
+                      onChange={(e) => setOrgName(e.target.value)}
+                      placeholder="Enter your organization name"
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="Enter your API key"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
+                    required
+                  />
+                  <p className="text-white/60 text-xs mt-1">
+                    Enter the API key you received during registration
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
-            <div>
-              <label className="block text-white text-sm font-medium mb-2">
-                Organization Name
-              </label>
-              <input
-                type="text"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="Enter your organization name"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
-                required
-              />
-              <p className="text-white/60 text-xs mt-1">
-                This will create a new organization and generate your first API key
-              </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Organization Name
+                </label>
+                <input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Enter your organization name"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-white text-sm font-medium mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a secure password"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-primary"
+                  required
+                />
+                <p className="text-white/60 text-xs mt-1">
+                  This will create a new organization and generate your first API key
+                </p>
+              </div>
             </div>
           )}
 
@@ -154,7 +235,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
           <div className="mt-4 p-4 bg-yellow-400/10 border border-yellow-400/20 rounded-lg">
             <p className="text-yellow-400 text-sm">
               <strong>Important:</strong> Your API key will be shown only once after registration. 
-              Make sure to copy and store it securely.
+              Make sure to copy and store it securely. You can login using either your organization credentials or the API key.
             </p>
           </div>
         )}

@@ -212,12 +212,12 @@ const DocsSidebar = ({ onLoginClick }) => {
 
         {/* API Keys at the bottom */}
         <div className="mt-auto">
-          <button 
-            onClick={onLoginClick}
-            className="w-full text-left text-gray-400 hover:text-white py-3 px-3 text-sm rounded-md hover:bg-gray-900/50 transition-colors border border-gray-800 hover:border-gray-700"
+          <Link
+            to="/org-dashboard"
+            className="w-full text-left text-gray-400 hover:text-white py-3 px-3 text-sm rounded-md hover:bg-gray-900/50 transition-colors border border-gray-800 hover:border-gray-700 block"
           >
             Get API Keys
-          </button>
+          </Link>
         </div>
       </nav>
     </aside>
