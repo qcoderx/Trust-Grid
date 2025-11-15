@@ -30,6 +30,7 @@ const LoginModal = ({ isOpen, onClose, onLogin, onRegister }) => {
       }
       if (mode === 'login') {
         onClose();
+        navigate('/profile');
       }
     } catch (err) {
       setError(err.message || 'An error occurred');

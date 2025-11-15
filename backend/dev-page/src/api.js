@@ -11,6 +11,8 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    console.log('API Request:', { url, method: options.method || 'GET' });
+    
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -20,16 +22,25 @@ class ApiClient {
       headers['X-API-Key'] = this.apiKey;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      console.log('API Response:', { status: response.status, url });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Details:', { status: response.status, statusText: response.statusText, body: errorText });
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Network/API Error:', error);
+      throw error;
     }
-
-    return response.json();
   }
 
   // API Key management

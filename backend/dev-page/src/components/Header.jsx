@@ -1,6 +1,6 @@
 // components/Header.jsx
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LoginModal from './auth/LoginModal';
 
@@ -8,18 +8,6 @@ const Header = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const { user, login, register, logout, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogin = async (apiKey) => {
-    await login(apiKey);
-    navigate('/profile');
-  };
-
-  const handleRegister = async (orgName) => {
-    const result = await register(orgName);
-    // Don't navigate immediately - let modal show API key first
-    return result;
-  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -49,16 +37,14 @@ const Header = () => {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 dark:border-white/10 bg-background-light dark:bg-background-dark px-4 sm:px-6 lg:px-8">
         {/* Logo Section */}
-        <Link to='/'>
-        <div className="flex items-center gap-4">
-          <a className="flex items-center gap-3 group" href="#">
+        <Link to='/' className="flex items-center gap-4">
+          <div className="flex items-center gap-3 group">
             <span className="text-primary text-2xl font-bold">&lt;/&gt;</span>
             <div className="hidden sm:block">
               <p className="text-sm font-bold leading-tight text-black dark:text-white group-hover:text-primary transition-colors">TrustGrid</p>
               <p className="text-xs text-black/60 dark:text-white/60 leading-tight">for Developers</p>
             </div>
-          </a>
-        </div>
+          </div>
         </Link>
 
         {/* Search Bar */}
@@ -174,8 +160,8 @@ const Header = () => {
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
-        onLogin={handleLogin}
-        onRegister={handleRegister}
+        onLogin={login}
+        onRegister={register}
       />
     </>
   );
