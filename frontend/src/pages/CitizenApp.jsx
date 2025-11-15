@@ -1,73 +1,62 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import ApiClient from '../api';
 
 const CitizenApp = () => {
   const [user, setUser] = useState(null);
   const [requests, setRequests] = useState([]);
   const [pendingRequest, setPendingRequest] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleLogin = async (username, password) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        fetchRequests(userData._id || username);
-      } else if (response.status === 404 || response.status === 401) {
-        await handleRegister(username, password);
-      } else {
-        setUser({ id: username, username });
-        fetchRequests(username);
-      }
+      setLoading(true);
+      setError(null);
+      const userData = await ApiClient.loginCitizen(username, password);
+      setUser(userData);
+      await fetchRequests(userData.username);
     } catch (error) {
       console.error('Login error:', error);
-      setUser({ id: username, username });
-      fetchRequests(username);
+      try {
+        await handleRegister(username, password);
+      } catch (regError) {
+        setError('Login failed. Please check your credentials.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRegister = async (username, password) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/citizen/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password })
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        fetchRequests(userData._id || username);
-      } else {
-        setUser({ id: username, username });
-        fetchRequests(username);
-      }
+      const userData = await ApiClient.registerCitizen(username, password);
+      setUser(userData);
+      await fetchRequests(userData.username);
     } catch (error) {
       console.error('Register error:', error);
-      setUser({ id: username, username });
-      fetchRequests(username);
+      throw error;
     }
   };
 
   const fetchRequests = async (userId) => {
     try {
-      const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${userId}/log`);
-      if (response.ok) {
-        const data = await response.json();
-        setRequests(data);
+      const [transparencyLog, pendingRequests] = await Promise.all([
+        ApiClient.getCitizenTransparencyLog(userId).catch(() => []),
+        ApiClient.getPendingRequests(userId).catch(() => [])
+      ]);
+      
+      setRequests(transparencyLog || []);
+      
+      // Check for pending requests
+      const pending = pendingRequests?.find(req => req.status === 'pending');
+      if (pending && !pendingRequest) {
+        setPendingRequest(pending);
       }
     } catch (error) {
       console.error('Fetch requests error:', error);
+      // Fallback to demo data
       setRequests([
         {
           _id: '1',
@@ -83,80 +72,38 @@ const CitizenApp = () => {
   };
 
   const simulateNewRequest = async () => {
-    try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/request-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': 'sk_test_demo_key_for_simulation'
-        },
-        body: JSON.stringify({
-          user_id: user?.id || 'ayo',
-          data_type: 'bvn',
-          purpose: 'KYC verification'
-        })
-      });
-      
-      if (response.ok) {
-        console.log('Data request submitted successfully');
-      } else {
-        const newRequest = {
-          _id: `req_${Date.now()}`,
-          org_id: 'SME-Femi',
-          user_id: user?.id || 'ayo',
-          data_type: 'bvn',
-          purpose: 'KYC verification',
-          status: 'pending',
-          timestamp: new Date().toISOString(),
-        };
-        
-        setRequests(prev => [...prev, newRequest]);
-        setPendingRequest(newRequest);
-      }
-    } catch (error) {
-      console.error('Simulate request error:', error);
-      const newRequest = {
-        _id: `req_${Date.now()}`,
-        org_id: 'SME-Femi',
-        user_id: user?.id || 'ayo',
-        data_type: 'bvn',
-        purpose: 'KYC verification',
-        status: 'pending',
-        timestamp: new Date().toISOString(),
-      };
-      
-      setRequests(prev => [...prev, newRequest]);
-      setPendingRequest(newRequest);
-    }
+    const newRequest = {
+      _id: `req_${Date.now()}`,
+      org_id: 'SME-Femi',
+      user_id: user?.username || 'ayo',
+      data_type: 'bvn',
+      purpose: 'KYC verification',
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    };
+    
+    setRequests(prev => [...prev, newRequest]);
+    setPendingRequest(newRequest);
   };
 
   const handleConsentResponse = async (requestId, response) => {
     try {
-      const apiResponse = await fetch('https://trust-grid.onrender.com/api/v1/citizen/respond', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ request_id: requestId, decision: response })
-      });
+      await ApiClient.respondToRequest(requestId, response);
       
-      if (apiResponse.ok) {
-        setRequests(prev => prev.map(req => 
-          req._id === requestId 
-            ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
-            : req
-        ));
-        setPendingRequest(null);
-      } else {
-        setRequests(prev => prev.map(req => 
-          req._id === requestId 
-            ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
-            : req
-        ));
-        setPendingRequest(null);
+      setRequests(prev => prev.map(req => 
+        req._id === requestId 
+          ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
+          : req
+      ));
+      setPendingRequest(null);
+      
+      // Refresh data
+      if (user) {
+        await fetchRequests(user.username);
       }
     } catch (error) {
       console.error('Consent response error:', error);
+      // Update locally even if API fails
       setRequests(prev => prev.map(req => 
         req._id === requestId 
           ? { ...req, status: response, timestamp_responded: new Date().toISOString() }
@@ -171,23 +118,16 @@ const CitizenApp = () => {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`https://trust-grid.onrender.com/api/v1/citizen/${user.id}/requests`);
-        if (response.ok) {
-          const pendingRequests = await response.json();
-          const pending = pendingRequests.find(req => req.status === 'pending');
-          if (pending && !pendingRequest) {
-            setPendingRequest(pending);
-            fetchRequests(user.id);
-          }
+        const pendingRequests = await ApiClient.getPendingRequests(user.username);
+        const pending = pendingRequests?.find(req => req.status === 'pending');
+        if (pending && !pendingRequest) {
+          setPendingRequest(pending);
+          await fetchRequests(user.username);
         }
       } catch (error) {
         console.error('Poll requests error:', error);
-        const pending = requests.find(req => req.status === 'pending');
-        if (pending && !pendingRequest) {
-          setPendingRequest(pending);
-        }
       }
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [user, pendingRequest]);
@@ -233,8 +173,15 @@ const CitizenApp = () => {
                   <p className="text-white/70 text-sm">Sign in to continue</p>
                 </div>
 
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-200 text-xs text-center">
+                    {error}
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <input
+                    id="username"
                     type="text"
                     defaultValue="ayo"
                     className="w-full px-4 py-3 bg-black/40 border border-white/30 rounded-xl text-white placeholder-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -242,6 +189,7 @@ const CitizenApp = () => {
                   />
 
                   <input
+                    id="password"
                     type="password"
                     defaultValue="password"
                     className="w-full px-4 py-3 bg-black/40 border border-white/30 rounded-xl text-white placeholder-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -251,10 +199,15 @@ const CitizenApp = () => {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleLogin('ayo', 'password')}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold transition-colors text-sm"
+                    onClick={() => {
+                      const username = document.getElementById('username').value;
+                      const password = document.getElementById('password').value;
+                      handleLogin(username, password);
+                    }}
+                    disabled={loading}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold transition-colors text-sm disabled:opacity-50"
                   >
-                    Sign In
+                    {loading ? 'Signing In...' : 'Sign In'}
                   </motion.button>
                 </div>
               </div>

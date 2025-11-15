@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import ApiClient from '../api';
 
 const DashboardPage = () => {
   const [user, setUser] = useState(null);
@@ -11,82 +12,87 @@ const DashboardPage = () => {
   const [apiKeys, setApiKeys] = useState([]);
   const [complianceLogs, setComplianceLogs] = useState([]);
   const [isVerified, setIsVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleLogin = async (username, password) => {
+  const handleLogin = async (apiKey) => {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
-
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData
-      });
+      setLoading(true);
+      setError(null);
       
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        setIsVerified(userData.is_verified || false);
-        loadDashboardData(userData._id || username);
-      } else if (response.status === 404 || response.status === 401) {
-        await handleRegister(username, password);
+      // First test if backend is accessible
+      try {
+        await ApiClient.healthCheck();
+      } catch (healthError) {
+        throw new Error('Backend service is not accessible. Please try again later.');
       }
+      
+      ApiClient.setApiKey(apiKey);
+      const userData = await ApiClient.loginOrganization(apiKey);
+      setUser(userData);
+      setIsVerified(userData.verification_status === 'verified');
+      await loadDashboardData();
     } catch (error) {
       console.error('Login error:', error);
-      setUser({ id: username, username });
+      if (error.message.includes('500')) {
+        setError('Server error. The backend service may be starting up. Please wait a moment and try again.');
+      } else if (error.message.includes('401') || error.message.includes('Invalid')) {
+        setError('Invalid API key. Please check and try again.');
+      } else {
+        setError(`Login failed: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRegister = async (username, password) => {
+  const handleRegister = async (orgName) => {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
-
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData
-      });
+      setLoading(true);
+      setError(null);
       
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        setIsVerified(false);
-        loadDashboardData(userData._id || username);
+      // First test if backend is accessible
+      try {
+        await ApiClient.healthCheck();
+      } catch (healthError) {
+        throw new Error('Backend service is not accessible. Please try again later.');
       }
+      
+      const result = await ApiClient.registerOrganization(orgName);
+      setUser(result.organization);
+      setNewApiKey(result.api_key);
+      setShowApiKeyModal(true);
+      setIsVerified(result.organization.verification_status === 'verified');
+      ApiClient.setApiKey(result.api_key);
+      await loadDashboardData();
     } catch (error) {
       console.error('Register error:', error);
-      setUser({ id: username, username });
+      if (error.message.includes('500')) {
+        setError('Server error. The backend service may be starting up. Please wait a moment and try again.');
+      } else if (error.message.includes('already exists')) {
+        setError('Organization name already exists. Please choose a different name.');
+      } else {
+        setError(`Registration failed: ${error.message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadDashboardData = async (orgId) => {
+  const loadDashboardData = async () => {
     try {
-      const [policyRes, keysRes, logsRes] = await Promise.all([
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/policy`),
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/api-keys`),
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/compliance-log`)
+      const [keysData, logsData, orgData] = await Promise.all([
+        ApiClient.getApiKeys().catch(() => []),
+        ApiClient.getOrgComplianceLog().catch(() => []),
+        ApiClient.getOrganizationDetails().catch(() => null)
       ]);
 
-      if (policyRes.ok) {
-        const policyData = await policyRes.json();
-        setPolicy(policyData.policy || '');
-      }
-
-      if (keysRes.ok) {
-        const keysData = await keysRes.json();
-        setApiKeys(keysData || []);
-      }
-
-      if (logsRes.ok) {
-        const logsData = await logsRes.json();
-        setComplianceLogs(logsData || []);
+      setApiKeys(keysData || []);
+      setComplianceLogs(logsData || []);
+      if (orgData) {
+        setPolicy(orgData.policy_text || '');
+        setUser(orgData);
+        setIsVerified(orgData.verification_status === 'verified');
       }
     } catch (error) {
       console.error('Load dashboard data error:', error);
@@ -95,112 +101,65 @@ const DashboardPage = () => {
 
   const savePolicy = async () => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/policy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
-        },
-        body: JSON.stringify({ policy_text: policy })
-      });
-      
-      if (response.ok) {
-        alert('Policy saved successfully!');
-      } else {
-        alert('Policy saved locally!');
-      }
+      await ApiClient.updateOrgPolicy(policy);
+      alert('Policy saved successfully!');
     } catch (error) {
       console.error('Save policy error:', error);
-      alert('Policy saved locally!');
+      alert('Failed to save policy. Please try again.');
     }
   };
 
   const createApiKey = async (keyName) => {
     try {
-      const response = await fetch(`https://trust-grid.onrender.com/api/v1/org/api-keys`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
-        },
-        body: JSON.stringify({ name: keyName })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setApiKeys(prev => [...prev, result.key_details]);
-        setNewApiKey(result.api_key);
-        setShowApiKeyModal(true);
-        loadDashboardData(user.id);
-      }
+      const result = await ApiClient.createApiKey(keyName);
+      setApiKeys(prev => [...prev, result.key_details]);
+      setNewApiKey(result.api_key);
+      setShowApiKeyModal(true);
     } catch (error) {
       console.error('Create API key error:', error);
+      alert('Failed to create API key. Please try again.');
     }
   };
 
   const revokeApiKey = async (keyId) => {
     try {
-      const response = await fetch(`https://trust-grid.onrender.com/api/v1/org/api-keys/${keyId}/revoke`, {
-        method: 'POST',
-        headers: {
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
-        }
-      });
-      
-      if (response.ok) {
-        setApiKeys(prev => prev.map(key => 
-          key._id === keyId ? { ...key, status: 'revoked' } : key
-        ));
-        loadDashboardData(user.id);
-      }
+      await ApiClient.revokeApiKey(keyId);
+      setApiKeys(prev => prev.map(key => 
+        key._id === keyId ? { ...key, status: 'revoked' } : key
+      ));
     } catch (error) {
       console.error('Revoke API key error:', error);
+      alert('Failed to revoke API key. Please try again.');
     }
   };
 
   const submitVerification = async (formData) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/org/submit-for-verification', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
-        },
-        body: formData
-      });
-      
-      if (response.ok) {
-        setShowVerificationModal(false);
-        alert('Verification submitted successfully! You will be notified once reviewed.');
-        loadDashboardData(user.id);
-      }
+      await ApiClient.submitForVerification(formData);
+      setShowVerificationModal(false);
+      alert('Verification submitted successfully! You will be notified once reviewed.');
+      await loadDashboardData();
     } catch (error) {
       console.error('Submit verification error:', error);
+      alert('Failed to submit verification. Please try again.');
     }
   };
 
   const submitDataRequest = async (userId, dataType, purpose) => {
     try {
-      const response = await fetch('https://trust-grid.onrender.com/api/v1/request-data', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
-        },
-        body: JSON.stringify({ user_id: userId, data_type: dataType, purpose })
-      });
-      
-      if (response.ok) {
-        alert('Data request submitted successfully!');
-        loadDashboardData(user.id);
-      }
+      await ApiClient.requestDataAccess(userId, dataType, purpose);
+      alert('Data request submitted successfully!');
+      await loadDashboardData();
     } catch (error) {
       console.error('Submit data request error:', error);
+      alert('Failed to submit data request. Please try again.');
     }
   };
 
   const LoginForm = () => {
-    const [username, setUsername] = useState('SME-Femi');
-    const [password, setPassword] = useState('password');
+    const [mode, setMode] = useState('login');
+    const [apiKey, setApiKey] = useState('');
+    const [orgName, setOrgName] = useState('');
     
     return (
       <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark py-12 px-4 sm:px-6 lg:px-8">
@@ -214,31 +173,74 @@ const DashboardPage = () => {
               </div>
             </Link>
             <h2 className="text-3xl font-extrabold text-black dark:text-white">
-              Sign in to your account
+              {mode === 'login' ? 'Sign in to your account' : 'Register your organization'}
             </h2>
           </div>
           <div className="bg-white/5 dark:bg-white/5 shadow rounded-xl border border-white/10 p-8">
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded text-red-800 dark:text-red-200 text-sm">
+                {error}
+              </div>
+            )}
             <div className="space-y-6">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
-                placeholder="Organization Username"
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
-                placeholder="Password"
-              />
-              <button
-                onClick={() => handleLogin(username, password)}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                Sign in
-              </button>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  onClick={() => setMode('login')}
+                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-l-md border ${
+                    mode === 'login'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-transparent text-black dark:text-white border-black/20 dark:border-white/20'
+                  }`}
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => setMode('register')}
+                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-r-md border ${
+                    mode === 'register'
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-transparent text-black dark:text-white border-black/20 dark:border-white/20'
+                  }`}
+                >
+                  Register
+                </button>
+              </div>
+
+              {mode === 'login' ? (
+                <>
+                  <input
+                    type="text"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
+                    placeholder="Enter your API key"
+                  />
+                  <button
+                    onClick={() => handleLogin(apiKey)}
+                    disabled={loading || !apiKey}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  >
+                    {loading ? 'Signing in...' : 'Sign in'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    className="w-full px-3 py-2 border border-black/20 dark:border-white/20 rounded-md shadow-sm placeholder-black/50 dark:placeholder-white/50 focus:outline-none focus:ring-primary focus:border-primary bg-transparent text-black dark:text-white"
+                    placeholder="Organization Name"
+                  />
+                  <button
+                    onClick={() => handleRegister(orgName)}
+                    disabled={loading || !orgName}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                  >
+                    {loading ? 'Registering...' : 'Register'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -266,10 +268,10 @@ const DashboardPage = () => {
               </Link>
               <div className="flex items-center gap-3 px-3 py-1.5 bg-white/5 dark:bg-white/5 rounded-lg border border-white/10">
                 <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">{user?.username?.charAt(0)?.toUpperCase()}</span>
+                  <span className="text-white text-sm font-bold">{user?.org_name?.charAt(0)?.toUpperCase()}</span>
                 </div>
                 <div>
-                  <p className="text-black dark:text-white text-sm font-medium">{user?.username}</p>
+                  <p className="text-black dark:text-white text-sm font-medium">{user?.org_name}</p>
                   <p className="text-black/60 dark:text-white/60 text-xs">
                     {isVerified ? '✓ Verified' : '⚠ Unverified'}
                   </p>
@@ -439,6 +441,8 @@ const DashboardPage = () => {
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         log.status === 'approved' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : log.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                           : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}>
                         {log.status}

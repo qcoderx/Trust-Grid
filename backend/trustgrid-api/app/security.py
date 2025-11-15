@@ -23,8 +23,11 @@ def generate_api_key(prefix: str = "tg_live", length: int = 16) -> str:
 def get_api_key_hash(api_key: str) -> str:
     """
     Hashes the API key using passlib.
+    Truncates to 72 bytes to avoid bcrypt limitations.
     """
-    return pwd_context.hash(api_key)
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    truncated_key = api_key.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.hash(truncated_key)
 
 def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     """
@@ -32,7 +35,9 @@ def verify_api_key(plain_key: str, hashed_key: str) -> bool:
     Returns True if valid, False otherwise.
     """
     try:
-        return pwd_context.verify(plain_key, hashed_key)
+        # Truncate the key the same way as during hashing
+        truncated_key = plain_key.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+        return pwd_context.verify(truncated_key, hashed_key)
     except Exception:
         # Catches errors like mismatch or invalid hash format
         return False

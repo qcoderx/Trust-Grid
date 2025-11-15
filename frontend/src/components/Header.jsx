@@ -5,7 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import LoginModal from './auth/LoginModal';
 
 const Header = () => {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark' || (!savedTheme);
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const { user, login, register, logout, isAuthenticated } = useAuth();
 

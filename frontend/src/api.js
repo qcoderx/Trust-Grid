@@ -11,12 +11,16 @@ class ApiClient {
 
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
-    console.log('API Request:', { url, method: options.method || 'GET' });
+    console.log('API Request:', { url, method: options.method || 'GET', body: options.body });
     
     const headers = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    // Only add Content-Type if not multipart/form-data
+    if (!options.body || !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (this.apiKey) {
       headers['X-API-Key'] = this.apiKey;
@@ -36,7 +40,12 @@ class ApiClient {
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      return response.json();
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return response.json();
+      } else {
+        return response.text();
+      }
     } catch (error) {
       console.error('Network/API Error:', error);
       throw error;
@@ -86,6 +95,68 @@ class ApiClient {
 
   async getOrganizationDetails() {
     return this.request('/api/v1/org/me');
+  }
+
+  // Organization verification and policy
+  async submitForVerification(formData) {
+    return this.request('/api/v1/org/submit-for-verification', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async updateOrgPolicy(policyText) {
+    return this.request('/api/v1/org/policy', {
+      method: 'POST',
+      body: JSON.stringify({ policy_text: policyText }),
+    });
+  }
+
+  // Data requests and compliance
+  async requestDataAccess(userId, dataType, purpose) {
+    return this.request('/api/v1/request-data', {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, data_type: dataType, purpose }),
+    });
+  }
+
+  async getOrgComplianceLog() {
+    return this.request('/api/v1/org/log');
+  }
+
+  // Citizen API functions
+  async registerCitizen(username, password) {
+    return this.request('/api/v1/citizen/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+  }
+
+  async loginCitizen(username, password) {
+    return this.request('/api/v1/citizen/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+  }
+
+  async getPendingRequests(userId) {
+    return this.request(`/api/v1/citizen/${userId}/requests`);
+  }
+
+  async respondToRequest(requestId, decision) {
+    return this.request('/api/v1/citizen/respond', {
+      method: 'POST',
+      body: JSON.stringify({ request_id: requestId, decision }),
+    });
+  }
+
+  async getCitizenTransparencyLog(userId) {
+    return this.request(`/api/v1/citizen/${userId}/log`);
+  }
+
+  // Health check
+  async healthCheck() {
+    return this.request('/health');
   }
 }
 
