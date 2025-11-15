@@ -13,8 +13,8 @@ from tga import TrustGridClient
 def test_data_retrieval():
     """Test data retrieval using TGA SDK"""
     
-    # Use the working API key
-    api_key = "tg_live_mdB0Ie8JrAIB6Kkwkmq-Xg"
+    # Use the fresh API key from production
+    api_key = "tg_live_TNsJ20cdIsKUfH5RNoXIxQ"
     
     print("🛡️  TrustGrid SDK Data Retrieval Test")
     print("=" * 45)

@@ -179,8 +179,9 @@ async def create_user(user: UserCreate):
         users_collection.delete_one({"_id": existing_user["_id"]})
         logger.info(f"Deleted existing user '{user.username}' for re-registration")
     
-    # Hash user password on creation
-    user_doc = {"username": user.username, "password": pwd_context.hash(user.password)}
+    # Hash user password on creation (truncate to 72 bytes for bcrypt)
+    password_truncated = user.password[:72] if len(user.password.encode()) > 72 else user.password
+    user_doc = {"username": user.username, "password": pwd_context.hash(password_truncated)}
     result = users_collection.insert_one(user_doc)
     created_user = users_collection.find_one({"_id": result.inserted_id})
     if not created_user: raise HTTPException(status_code=500, detail="Failed to retrieve created user.")
@@ -196,8 +197,9 @@ async def login_user(user: UserCreate):
     if not existing_user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    # Verify password using bcrypt (consistent with registration)
-    if not pwd_context.verify(user.password, existing_user["password"]):
+    # Verify password using bcrypt (consistent with registration, truncate to 72 bytes)
+    password_truncated = user.password[:72] if len(user.password.encode()) > 72 else user.password
+    if not pwd_context.verify(password_truncated, existing_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Return user details (excluding password)
