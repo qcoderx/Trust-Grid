@@ -8,7 +8,7 @@ import requests
 def test_data_request():
     """Test data request endpoint directly"""
     
-    api_key = "tg_live_ZLhsWxRzK4MHxIl-U4iRxw"
+    api_key = "tg_live_9epPETRxQM60A6Klrac44Q"
     
     headers = {
         "X-API-Key": api_key,
@@ -18,7 +18,7 @@ def test_data_request():
     data = {
         "user_id": "plato",
         "data_type": "email",
-        "purpose": "testing"
+        "purpose": "business updates"
     }
     
     url = "https://trust-grid.onrender.com/api/v1/request-data"

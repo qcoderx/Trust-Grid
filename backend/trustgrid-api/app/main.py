@@ -180,7 +180,8 @@ async def create_user(user: UserCreate):
         logger.info(f"Deleted existing user '{user.username}' for re-registration")
     
     # Hash user password on creation (truncate to 72 bytes for bcrypt)
-    password_truncated = user.password[:72] if len(user.password.encode()) > 72 else user.password
+    password_bytes = user.password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
     user_doc = {"username": user.username, "password": pwd_context.hash(password_truncated)}
     result = users_collection.insert_one(user_doc)
     created_user = users_collection.find_one({"_id": result.inserted_id})
@@ -198,7 +199,8 @@ async def login_user(user: UserCreate):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     # Verify password using bcrypt (consistent with registration, truncate to 72 bytes)
-    password_truncated = user.password[:72] if len(user.password.encode()) > 72 else user.password
+    password_bytes = user.password.encode('utf-8')[:72]
+    password_truncated = password_bytes.decode('utf-8', errors='ignore')
     if not pwd_context.verify(password_truncated, existing_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
