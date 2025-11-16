@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 
 const DashboardPage = () => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('policy');
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -12,11 +14,12 @@ const DashboardPage = () => {
   const [complianceLogs, setComplianceLogs] = useState([]);
   const [isVerified, setIsVerified] = useState(false);
 
-  const handleLogin = async (username, password) => {
+  const handleLogin = async (apiKey) => {
+    setLoading(true);
+    setError('');
     try {
       const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
+      formData.append('api_key', apiKey);
 
       const response = await fetch('https://trust-grid.onrender.com/api/v1/org/login', {
         method: 'POST',
@@ -28,41 +31,49 @@ const DashboardPage = () => {
       
       if (response.ok) {
         const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
-        setIsVerified(userData.is_verified || false);
-        loadDashboardData(userData._id || username);
-      } else if (response.status === 404 || response.status === 401) {
-        await handleRegister(username, password);
+        setUser(userData);
+        setIsVerified(userData.verification_status === 'verified');
+        loadDashboardData(userData._id);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
-      setUser({ id: username, username });
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRegister = async (username, password) => {
+  const handleRegister = async (orgName) => {
+    setLoading(true);
+    setError('');
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
-
       const response = await fetch('https://trust-grid.onrender.com/api/v1/org/register', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: formData
+        body: JSON.stringify({ org_name: orgName })
       });
       
       if (response.ok) {
-        const userData = await response.json();
-        setUser({ id: userData._id || username, username: userData.username || username });
+        const result = await response.json();
+        setUser(result.organization);
         setIsVerified(false);
-        loadDashboardData(userData._id || username);
+        setNewApiKey(result.api_key);
+        setShowApiKeyModal(true);
+        loadDashboardData(result.organization._id);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Registration failed');
       }
     } catch (error) {
       console.error('Register error:', error);
-      setUser({ id: username, username });
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
