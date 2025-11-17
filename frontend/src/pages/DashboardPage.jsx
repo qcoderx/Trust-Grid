@@ -31,9 +31,9 @@ const DashboardPage = () => {
       
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
+        setUser({...userData, api_key: apiKey});
         setIsVerified(userData.verification_status === 'verified');
-        loadDashboardData(userData._id);
+        loadDashboardData(apiKey);
       } else {
         const errorData = await response.json();
         setError(errorData.detail || 'Login failed');
@@ -60,11 +60,11 @@ const DashboardPage = () => {
       
       if (response.ok) {
         const result = await response.json();
-        setUser(result.organization);
+        setUser({...result.organization, api_key: result.api_key});
         setIsVerified(false);
         setNewApiKey(result.api_key);
         setShowApiKeyModal(true);
-        loadDashboardData(result.organization._id);
+        loadDashboardData(result.api_key);
       } else {
         const errorData = await response.json();
         setError(errorData.detail || 'Registration failed');
@@ -77,24 +77,29 @@ const DashboardPage = () => {
     }
   };
 
-  const loadDashboardData = async (orgId) => {
+  const loadDashboardData = async (apiKey) => {
+    if (!apiKey) return;
+    
     try {
-      const [policyRes, keysRes, logsRes] = await Promise.all([
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/policy`),
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/api-keys`),
-        fetch(`https://trust-grid.onrender.com/api/v1/org/${orgId}/compliance-log`)
-      ]);
-
-      if (policyRes.ok) {
-        const policyData = await policyRes.json();
-        setPolicy(policyData.policy || '');
+      const headers = { 'X-API-Key': apiKey };
+      
+      // Get organization details
+      const orgRes = await fetch('https://trust-grid.onrender.com/api/v1/org/me', { headers });
+      if (orgRes.ok) {
+        const orgData = await orgRes.json();
+        setPolicy(orgData.policy_text || '');
+        setIsVerified(orgData.verification_status === 'verified');
       }
 
+      // Load API keys
+      const keysRes = await fetch('https://trust-grid.onrender.com/api/v1/org/api-keys', { headers });
       if (keysRes.ok) {
         const keysData = await keysRes.json();
         setApiKeys(keysData || []);
       }
 
+      // Load compliance logs
+      const logsRes = await fetch('https://trust-grid.onrender.com/api/v1/org/log', { headers });
       if (logsRes.ok) {
         const logsData = await logsRes.json();
         setComplianceLogs(logsData || []);
@@ -110,7 +115,7 @@ const DashboardPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+          'X-API-Key': user?.api_key || apiKeys[0]?.key_hash
         },
         body: JSON.stringify({ policy_text: policy })
       });
@@ -132,7 +137,7 @@ const DashboardPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+          'X-API-Key': user?.api_key || apiKeys[0]?.key_hash
         },
         body: JSON.stringify({ name: keyName })
       });
@@ -142,7 +147,7 @@ const DashboardPage = () => {
         setApiKeys(prev => [...prev, result.key_details]);
         setNewApiKey(result.api_key);
         setShowApiKeyModal(true);
-        loadDashboardData(user.id);
+        loadDashboardData(user.api_key);
       }
     } catch (error) {
       console.error('Create API key error:', error);
@@ -154,7 +159,7 @@ const DashboardPage = () => {
       const response = await fetch(`https://trust-grid.onrender.com/api/v1/org/api-keys/${keyId}/revoke`, {
         method: 'POST',
         headers: {
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+          'X-API-Key': user?.api_key || apiKeys[0]?.key_hash
         }
       });
       
@@ -162,7 +167,7 @@ const DashboardPage = () => {
         setApiKeys(prev => prev.map(key => 
           key._id === keyId ? { ...key, status: 'revoked' } : key
         ));
-        loadDashboardData(user.id);
+        loadDashboardData(user.api_key);
       }
     } catch (error) {
       console.error('Revoke API key error:', error);
@@ -174,7 +179,7 @@ const DashboardPage = () => {
       const response = await fetch('https://trust-grid.onrender.com/api/v1/org/submit-for-verification', {
         method: 'POST',
         headers: {
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+          'X-API-Key': user?.api_key || apiKeys[0]?.key_hash
         },
         body: formData
       });
@@ -182,7 +187,7 @@ const DashboardPage = () => {
       if (response.ok) {
         setShowVerificationModal(false);
         alert('Verification submitted successfully! You will be notified once reviewed.');
-        loadDashboardData(user.id);
+        loadDashboardData(user.api_key);
       }
     } catch (error) {
       console.error('Submit verification error:', error);
@@ -195,14 +200,14 @@ const DashboardPage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKeys[0]?.key || 'temp-key'
+          'X-API-Key': user?.api_key || apiKeys[0]?.key_hash
         },
         body: JSON.stringify({ user_id: userId, data_type: dataType, purpose })
       });
       
       if (response.ok) {
         alert('Data request submitted successfully!');
-        loadDashboardData(user.id);
+        loadDashboardData(user.api_key);
       }
     } catch (error) {
       console.error('Submit data request error:', error);
